@@ -5,6 +5,7 @@ import '../../models/attendance_model.dart';
 import '../../providers/hr_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/admin_provider.dart';
+import 'payroll_screen.dart';
 
 class HrDashboard extends StatefulWidget {
   const HrDashboard({super.key});
@@ -24,6 +25,11 @@ class _HrDashboardState extends State<HrDashboard> {
       appBar: AppBar(
         title: const Text('HR - Monitoring Absensi'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.payments),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PayrollScreen())),
+            tooltip: 'Kelola Payroll',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => Provider.of<AuthProvider>(context, listen: false).signOut(),
