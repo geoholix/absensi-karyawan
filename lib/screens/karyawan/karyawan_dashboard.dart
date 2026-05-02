@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/attendance_provider.dart';
+import 'attendance_history_screen.dart';
+import 'payslip_screen.dart';
 
 class KaryawanDashboard extends StatefulWidget {
   const KaryawanDashboard({super.key});
@@ -154,7 +156,34 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
                 ),
               ],
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
+
+            // Navigation Cards
+            const Text(
+              'Layanan',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 15),
+            Row(
+              children: [
+                _buildMenuCard(
+                  context,
+                  'Riwayat',
+                  Icons.history,
+                  Colors.blue,
+                  const AttendanceHistoryScreen(),
+                ),
+                const SizedBox(width: 15),
+                _buildMenuCard(
+                  context,
+                  'Slip Gaji',
+                  Icons.receipt_long,
+                  Colors.purple,
+                  const PayslipScreen(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
 
             // Action Section
             if (attendanceProvider.isLoading)
@@ -201,6 +230,28 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuCard(BuildContext context, String title, IconData icon, Color color, Widget screen) {
+    return Expanded(
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => screen)),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 30),
+              const SizedBox(height: 10),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
         ),
       ),
     );

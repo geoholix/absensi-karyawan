@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../models/attendance_model.dart';
 import '../models/user_model.dart';
+import '../models/payroll_model.dart';
 
 class AttendanceProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -36,6 +37,32 @@ class AttendanceProvider extends ChangeNotifier {
       _todayAttendance = null;
     }
     notifyListeners();
+  }
+
+  Stream<List<AttendanceModel>> getAttendanceHistory(String uid) {
+    return _firestore
+        .collection('attendance')
+        .where('uid', isEqualTo: uid)
+        .orderBy('tanggal', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return AttendanceModel.fromMap(doc.data(), doc.id);
+      }).toList();
+    });
+  }
+
+  Stream<List<PayrollModel>> getPayrollHistory(String uid) {
+    return _firestore
+        .collection('payroll')
+        .where('uid', isEqualTo: uid)
+        .orderBy('periode_akhir', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return PayrollModel.fromMap(doc.data(), doc.id);
+      }).toList();
+    });
   }
 
   Future<Position?> _getCurrentLocation() async {
