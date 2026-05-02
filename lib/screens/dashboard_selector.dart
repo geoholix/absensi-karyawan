@@ -4,6 +4,7 @@ import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'karyawan/karyawan_dashboard.dart';
 import 'admin/admin_dashboard.dart';
+import 'hr/hr_dashboard.dart';
 
 class DashboardSelector extends StatelessWidget {
   const DashboardSelector({super.key});
@@ -21,7 +22,7 @@ class DashboardSelector extends StatelessWidget {
       case 'Admin':
         return const AdminDashboard();
       case 'HR':
-        return const Scaffold(body: Center(child: Text('HR Dashboard (Coming Soon)')));
+        return const HrDashboard();
       case 'Karyawan':
       default:
         return const KaryawanDashboard();

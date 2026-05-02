@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/admin_provider.dart';
 import 'providers/attendance_provider.dart';
+import 'providers/hr_provider.dart';
 import 'screens/dashboard_selector.dart';
 
 // Note: You must run 'flutterfire configure' to generate this file
@@ -28,6 +29,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
         ChangeNotifierProvider(create: (_) => AttendanceProvider()),
+        ChangeNotifierProvider(create: (_) => HrProvider()),
       ],
       child: const MyApp(),
     ),
