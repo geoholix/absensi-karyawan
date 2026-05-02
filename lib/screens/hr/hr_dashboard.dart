@@ -119,9 +119,6 @@ class _HrDashboardState extends State<HrDashboard> {
     );
   }
 
-    );
-  }
-
   void _showLocationMap(BuildContext context, AttendanceModel record) {
     showDialog(
       context: context,
