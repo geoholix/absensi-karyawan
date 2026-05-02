@@ -42,7 +42,7 @@ class AdminDashboard extends StatelessWidget {
                   child: Text(user.nama.substring(0, 1).toUpperCase()),
                 ),
                 title: Text(user.nama),
-                subtitle: Text('${user.role} - ${user.lokasi_kerja} (${user.bagian})'),
+                subtitle: Text('${user.role} - ${user.lokasiKerja} (${user.bagian})'),
                 trailing: const Icon(Icons.edit),
                 onTap: () => _showEditUserDialog(context, user),
               );

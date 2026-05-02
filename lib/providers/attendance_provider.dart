@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:image/image.dart' as img;
 import '../models/attendance_model.dart';
 import '../models/user_model.dart';
 import '../models/payroll_model.dart';
@@ -91,6 +92,28 @@ class AttendanceProvider extends ChangeNotifier {
     );
   }
 
+  Future<Uint8List> _processImage(XFile file, Position pos) async {
+    final Uint8List bytes = await file.readAsBytes();
+    img.Image? image = img.decodeImage(bytes);
+    if (image == null) return bytes;
+
+    String date = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    String coords = '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
+    String text = '$date\n$coords';
+
+    // Add text watermark (simple approach)
+    img.drawString(image, text, font: img.arial24, x: 20, y: image.height - 60, color: img.ColorRgb8(255, 255, 0));
+
+    return Uint8List.fromList(img.encodeJpg(image));
+  }
+
+  Future<String> _uploadData(Uint8List data, String path) async {
+    Reference ref = _storage.ref().child(path);
+    UploadTask uploadTask = ref.putData(data);
+    TaskSnapshot snapshot = await uploadTask;
+    return await snapshot.ref.getDownloadURL();
+  }
+
   Future<String> _uploadFile(XFile file, String path) async {
     Reference ref = _storage.ref().child(path);
     UploadTask uploadTask;
@@ -118,7 +141,10 @@ class AttendanceProvider extends ChangeNotifier {
 
       String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       String fileName = '${user.uid}_${today}_in.jpg';
-      String photoUrl = await _uploadFile(photo, 'attendance/$fileName');
+      
+      // Process with watermark
+      Uint8List processedData = await _processImage(photo, pos);
+      String photoUrl = await _uploadData(processedData, 'attendance/$fileName');
 
       AttendanceModel newRecord = AttendanceModel(
         uid: user.uid,
@@ -155,7 +181,10 @@ class AttendanceProvider extends ChangeNotifier {
 
       String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       String fileName = '${user.uid}_${today}_out.jpg';
-      String photoUrl = await _uploadFile(photo, 'attendance/$fileName');
+      
+      // Process with watermark
+      Uint8List processedData = await _processImage(photo, pos);
+      String photoUrl = await _uploadData(processedData, 'attendance/$fileName');
 
       DateTime now = DateTime.now();
       

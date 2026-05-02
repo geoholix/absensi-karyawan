@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
@@ -7,7 +8,8 @@ import '../models/user_model.dart';
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _isGoogleSignInInitialized = false;
 
   UserModel? _userModel;
   UserModel? get userModel => _userModel;
@@ -43,21 +45,43 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        _isLoading = false;
-        notifyListeners();
-        return false;
+      User? user;
+
+      if (kIsWeb) {
+        // Use Firebase's built-in web popup authentication
+        GoogleAuthProvider authProvider = GoogleAuthProvider();
+        UserCredential userCredential = await _auth.signInWithPopup(authProvider);
+        user = userCredential.user;
+      } else {
+        // Use google_sign_in for Android/iOS
+        if (!_isGoogleSignInInitialized) {
+          try {
+            await _googleSignIn.initialize();
+          } catch (e) {
+            print('GoogleSignIn init caught (likely hot restart): $e');
+          }
+          _isGoogleSignInInitialized = true;
+        }
+        
+        final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
+        if (googleUser == null) {
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        final GoogleSignInAuthorizationClient authClient = googleUser.authorizationClient;
+        final GoogleSignInClientAuthorization? clientAuth = await authClient.authorizationForScopes([]);
+        
+        final AuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: clientAuth?.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        UserCredential userCredential = await _auth.signInWithCredential(credential);
+        user = userCredential.user;
       }
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
-      User? user = userCredential.user;
 
       if (user != null) {
         // Check if user exists in Firestore

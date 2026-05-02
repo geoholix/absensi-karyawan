@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import '../../models/attendance_model.dart';
 import '../../providers/hr_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -94,7 +96,16 @@ class _HrDashboardState extends State<HrDashboard> {
                           'Masuk: ${record.waktuMasuk != null ? DateFormat('HH:mm').format(record.waktuMasuk!) : '-'} | '
                           'Pulang: ${record.waktuPulang != null ? DateFormat('HH:mm').format(record.waktuPulang!) : '-'}',
                         ),
-                        trailing: const Icon(Icons.edit),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.map, color: Colors.blue),
+                              onPressed: () => _showLocationMap(context, record),
+                            ),
+                            const Icon(Icons.edit),
+                          ],
+                        ),
                         onTap: () => _showEditAttendanceDialog(context, record),
                       ),
                     );
@@ -105,6 +116,69 @@ class _HrDashboardState extends State<HrDashboard> {
           ),
         ],
       ),
+    );
+  }
+
+    );
+  }
+
+  void _showLocationMap(BuildContext context, AttendanceModel record) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        List<Marker> markers = [];
+        ll.LatLng? center;
+
+        if (record.lokasiMasuk != null) {
+          center = ll.LatLng(record.lokasiMasuk!.latitude, record.lokasiMasuk!.longitude);
+          markers.add(
+            Marker(
+              point: center,
+              width: 40,
+              height: 40,
+              child: const Icon(Icons.location_on, color: Colors.green, size: 40),
+            ),
+          );
+        }
+
+        if (record.lokasiPulang != null) {
+          center ??= ll.LatLng(record.lokasiPulang!.latitude, record.lokasiPulang!.longitude);
+          markers.add(
+            Marker(
+              point: ll.LatLng(record.lokasiPulang!.latitude, record.lokasiPulang!.longitude),
+              width: 40,
+              height: 40,
+              child: const Icon(Icons.location_on, color: Colors.orange, size: 40),
+            ),
+          );
+        }
+
+        return AlertDialog(
+          title: const Text('Lokasi Presensi'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400,
+            child: center == null
+                ? const Center(child: Text('Data lokasi tidak tersedia.'))
+                : FlutterMap(
+                    options: MapOptions(
+                      initialCenter: center,
+                      initialZoom: 15,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.geoholix.absensi_karyawan',
+                      ),
+                      MarkerLayer(markers: markers),
+                    ],
+                  ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup')),
+          ],
+        );
+      },
     );
   }
 

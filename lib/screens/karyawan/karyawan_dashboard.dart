@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/attendance_provider.dart';
+import '../../models/user_model.dart';
 import 'attendance_history_screen.dart';
 import 'payslip_screen.dart';
 
