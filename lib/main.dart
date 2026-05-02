@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/admin_provider.dart';
 import 'screens/dashboard_selector.dart';
 
 // Note: You must run 'flutterfire configure' to generate this file
 // For now, we use a placeholder or assume it exists if user already ran it.
-// import 'firebase_options.dart'; 
+import 'firebase_options.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    // Basic initialization for those who haven't run flutterfire configure yet
-    // If you have firebase_options.dart, use:
-    // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    await Firebase.initializeApp(); 
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
     print("Firebase initialization error: $e");
     // In production, handle this gracefully
@@ -25,6 +25,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => AdminProvider()),
       ],
       child: const MyApp(),
     ),

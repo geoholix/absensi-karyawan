@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "49933664039",
+    "project_id": "absensi-karyawan-4439d",
+    "storage_bucket": "absensi-karyawan-4439d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:49933664039:android:9699722659f391b35d7302",
+        "android_client_info": {
+          "package_name": "com.geoholix.absensi_karyawan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQaRTp1yLf9abfMvZiuEc6AJ39rJ73gY0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
