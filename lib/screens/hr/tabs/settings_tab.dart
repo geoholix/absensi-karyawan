@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/admin_provider.dart';
@@ -34,17 +35,20 @@ class _SettingsTabState extends State<SettingsTab> {
                 label: const Text('Lokasi Kantor'),
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E1E1E), foregroundColor: Colors.white),
               ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  showDialog(context: context, builder: (_) => const Center(child: CircularProgressIndicator()));
-                  await Seeder.seedDummyData();
-                  if (context.mounted) Navigator.pop(context); // Close loading
-                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dummy data dimuat!')));
-                },
-                icon: const Icon(Icons.dataset),
-                label: const Text('Load Data'),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E1E1E), foregroundColor: Colors.white),
-              ),
+              // Seeder is a destructive dev tool — only available in debug builds.
+              if (kDebugMode)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    showDialog(context: context, builder: (_) => const Center(child: CircularProgressIndicator()));
+                    await Seeder.seedDummyData();
+                    if (!context.mounted) return;
+                    Navigator.pop(context); // Close loading
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dummy data dimuat!')));
+                  },
+                  icon: const Icon(Icons.dataset),
+                  label: const Text('Load Data'),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E1E1E), foregroundColor: Colors.white),
+                ),
             ],
           ),
         ),

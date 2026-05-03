@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
+
+import '../utils/constants.dart';
+import '../utils/formatters.dart';
 
 class Seeder {
   static Future<void> seedDummyData() async {
     final firestore = FirebaseFirestore.instance;
-    
+
     // Delete existing dummy attendance to prevent duplicates
-    var existingAtt = await firestore.collection('attendance').where('foto_masuk_url', isEqualTo: 'https://via.placeholder.com/150').get();
+    var existingAtt = await firestore.collection(Collections.attendance).where('foto_masuk_url', isEqualTo: 'https://via.placeholder.com/150').get();
     for (var doc in existingAtt.docs) {
       await doc.reference.delete();
     }
@@ -93,7 +95,7 @@ class Seeder {
     ];
 
     for (var u in users) {
-      await firestore.collection('users').doc(u['uid'] as String).set(u);
+      await firestore.collection(Collections.users).doc(u['uid'] as String).set(u);
     }
 
     // Generate Attendance for the past 6 days + today
@@ -128,14 +130,14 @@ class Seeder {
     DateTime tPulang = DateTime(date.year, date.month, date.day, outH, outM);
     if (outH < inH) tPulang = tPulang.add(const Duration(days: 1)); // Overnight
 
-    String tgl = DateFormat('yyyy-MM-dd').format(date);
-    
+    String tgl = Formatters.isoDateKey(date);
+
     // Calculate normal / lembur
     double total = tPulang.difference(tMasuk).inMinutes / 60.0;
     double normal = total > 8 ? 8 : total;
     double lembur = total > 8 ? total - 8 : 0;
 
-    await fs.collection('attendance').add({
+    await fs.collection(Collections.attendance).add({
       'uid': uid,
       'tanggal': tgl,
       'waktu_masuk': Timestamp.fromDate(tMasuk),
@@ -145,7 +147,7 @@ class Seeder {
       'foto_masuk_url': 'https://via.placeholder.com/150',
       'foto_pulang_url': 'https://via.placeholder.com/150',
       'shift_aktual': shift,
-      'status': 'Selesai',
+      'status': AttendanceStatus.selesai,
       'total_jam_normal': normal,
       'total_jam_lembur': lembur,
     });

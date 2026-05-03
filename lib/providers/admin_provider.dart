@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../models/office_location_model.dart';
+import '../utils/constants.dart';
 
 class AdminProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -13,7 +14,7 @@ class AdminProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   Stream<List<UserModel>> getUsersStream() {
-    return _firestore.collection('users').snapshots().map((snapshot) {
+    return _firestore.collection(Collections.users).snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
         return UserModel.fromMap(doc.data());
       }).toList();
@@ -24,16 +25,16 @@ class AdminProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      await _firestore.collection('users').doc(user.uid).update(user.toMap());
+      await _firestore.collection(Collections.users).doc(user.uid).update(user.toMap());
     } catch (e) {
-      print('Error updating user: $e');
+      debugPrint('Error updating user: $e');
     }
     _isLoading = false;
     notifyListeners();
   }
 
   Stream<List<OfficeLocationModel>> getOfficeLocationsStream() {
-    return _firestore.collection('office_locations').snapshots().map((snapshot) {
+    return _firestore.collection(Collections.officeLocations).snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
         return OfficeLocationModel.fromMap(doc.data(), doc.id);
       }).toList();
@@ -44,9 +45,9 @@ class AdminProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      await _firestore.collection('office_locations').doc(location.id).set(location.toMap());
+      await _firestore.collection(Collections.officeLocations).doc(location.id).set(location.toMap());
     } catch (e) {
-      print('Error adding office location: $e');
+      debugPrint('Error adding office location: $e');
     }
     _isLoading = false;
     notifyListeners();
@@ -56,9 +57,9 @@ class AdminProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      await _firestore.collection('office_locations').doc(location.id).update(location.toMap());
+      await _firestore.collection(Collections.officeLocations).doc(location.id).update(location.toMap());
     } catch (e) {
-      print('Error updating office location: $e');
+      debugPrint('Error updating office location: $e');
     }
     _isLoading = false;
     notifyListeners();
@@ -68,9 +69,9 @@ class AdminProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      await _firestore.collection('office_locations').doc(id).delete();
+      await _firestore.collection(Collections.officeLocations).doc(id).delete();
     } catch (e) {
-      print('Error deleting office location: $e');
+      debugPrint('Error deleting office location: $e');
     }
     _isLoading = false;
     notifyListeners();

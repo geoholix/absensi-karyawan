@@ -192,10 +192,12 @@ class LeaveApprovalsTab extends StatelessWidget {
                         'status': 'Approved',
                         'created_at': FieldValue.serverTimestamp(),
                       });
-                      
+
+                      if (!context.mounted) return;
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cuti otomatis disetujui!')));
                     } catch (e) {
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                     }
                   },

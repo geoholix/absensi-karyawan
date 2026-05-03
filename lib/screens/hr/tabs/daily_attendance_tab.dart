@@ -402,10 +402,11 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
 
   void _showGlobalMap(BuildContext context, HrProvider hrProvider) async {
     showDialog(context: context, builder: (_) => const Center(child: CircularProgressIndicator()));
-    
+
     try {
       final records = await hrProvider.getAttendanceByDateRange(_selectedDate, _selectedDate);
-      Navigator.pop(context);
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading
 
       if (records.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada marker untuk tanggal ini.')));
@@ -474,7 +475,8 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
         },
       );
     } catch (e) {
-      Navigator.pop(context);
+      if (!context.mounted) return;
+      Navigator.pop(context); // Close loading
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }

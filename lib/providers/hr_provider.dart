@@ -1,18 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
 import '../models/attendance_model.dart';
 import '../models/user_model.dart';
 import '../models/payroll_model.dart';
 import '../models/leave_model.dart';
+import '../utils/constants.dart';
+import '../utils/formatters.dart';
 
 class HrProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Stream<List<AttendanceModel>> getDailyAttendanceStream(DateTime date) {
-    String dateStr = DateFormat('yyyy-MM-dd').format(date);
+    String dateStr = Formatters.isoDateKey(date);
     return _firestore
-        .collection('attendance')
+        .collection(Collections.attendance)
         .where('tanggal', isEqualTo: dateStr)
         .snapshots()
         .map((snapshot) {
@@ -25,7 +26,7 @@ class HrProvider extends ChangeNotifier {
   // --- Leave Management ---
   Stream<List<LeaveModel>> getLeavesStream() {
     return _firestore
-        .collection('leaves')
+        .collection(Collections.leaves)
         .orderBy('created_at', descending: true)
         .snapshots()
         .map((snapshot) {
@@ -37,23 +38,23 @@ class HrProvider extends ChangeNotifier {
 
   Future<void> updateLeaveStatus(String id, String status) async {
     try {
-      await _firestore.collection('leaves').doc(id).update({'status': status});
+      await _firestore.collection(Collections.leaves).doc(id).update({'status': status});
     } catch (e) {
-      print('Error updating leave: $e');
+      debugPrint('Error updating leave: $e');
       rethrow;
     }
   }
 
   // --- Analytics & Reporting ---
   Future<List<AttendanceModel>> getAttendanceByDateRange(DateTime start, DateTime end, {String? uid}) async {
-    String startStr = DateFormat('yyyy-MM-dd').format(start);
-    String endStr = DateFormat('yyyy-MM-dd').format(end);
+    String startStr = Formatters.isoDateKey(start);
+    String endStr = Formatters.isoDateKey(end);
 
     Query query = _firestore
-        .collection('attendance')
+        .collection(Collections.attendance)
         .where('tanggal', isGreaterThanOrEqualTo: startStr)
         .where('tanggal', isLessThanOrEqualTo: endStr);
-    
+
     if (uid != null) {
       query = query.where('uid', isEqualTo: uid);
     }
@@ -65,11 +66,11 @@ class HrProvider extends ChangeNotifier {
   Future<void> updateAttendance(AttendanceModel attendance) async {
     try {
       await _firestore
-          .collection('attendance')
+          .collection(Collections.attendance)
           .doc(attendance.idAbsen)
           .update(attendance.toMap());
     } catch (e) {
-      print('Error updating attendance: $e');
+      debugPrint('Error updating attendance: $e');
       rethrow;
     }
   }
@@ -83,13 +84,13 @@ class HrProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      String startStr = Formatters.isoDateKey(start);
+      String endStr = Formatters.isoDateKey(end);
+
       for (var user in allUsers) {
         // Fetch attendance for this user in period
-        String startStr = DateFormat('yyyy-MM-dd').format(start);
-        String endStr = DateFormat('yyyy-MM-dd').format(end);
-
         var snapshot = await _firestore
-            .collection('attendance')
+            .collection(Collections.attendance)
             .where('uid', isEqualTo: user.uid)
             .where('tanggal', isGreaterThanOrEqualTo: startStr)
             .where('tanggal', isLessThanOrEqualTo: endStr)
@@ -132,13 +133,13 @@ class HrProvider extends ChangeNotifier {
           gajiLembur: gajiLembur,
           adjustment: 0,
           totalPenerimaan: gajiPokok + gajiLibur + gajiLembur,
-          status: 'Pending',
+          status: PayrollStatus.pending,
         );
 
-        await _firestore.collection('payroll').add(payroll.toMap());
+        await _firestore.collection(Collections.payroll).add(payroll.toMap());
       }
     } catch (e) {
-      print('Error generating payroll: $e');
+      debugPrint('Error generating payroll: $e');
       rethrow;
     } finally {
       _isLoading = false;
@@ -148,7 +149,7 @@ class HrProvider extends ChangeNotifier {
 
   Stream<List<PayrollModel>> getAllPayrollsStream() {
     return _firestore
-        .collection('payroll')
+        .collection(Collections.payroll)
         .orderBy('periode_akhir', descending: true)
         .snapshots()
         .map((snapshot) {
@@ -161,40 +162,40 @@ class HrProvider extends ChangeNotifier {
   Future<void> updatePayrollAdjustment(String id, double adjustment) async {
     try {
       // Fetch the payroll to recalculate total
-      DocumentSnapshot doc = await _firestore.collection('payroll').doc(id).get();
+      DocumentSnapshot doc = await _firestore.collection(Collections.payroll).doc(id).get();
       if (doc.exists) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         double gajiPokok = (data['gaji_pokok'] ?? 0).toDouble();
         double gajiLibur = (data['gaji_libur'] ?? 0).toDouble();
         double gajiLembur = (data['gaji_lembur'] ?? 0).toDouble();
-        
+
         double total = gajiPokok + gajiLibur + gajiLembur + adjustment;
-        
-        await _firestore.collection('payroll').doc(id).update({
+
+        await _firestore.collection(Collections.payroll).doc(id).update({
           'adjustment': adjustment,
           'total_penerimaan': total,
         });
       }
     } catch (e) {
-      print('Error updating adjustment: $e');
+      debugPrint('Error updating adjustment: $e');
       rethrow;
     }
   }
 
   Future<void> updatePayrollStatus(String id, String status) async {
     try {
-      await _firestore.collection('payroll').doc(id).update({'status': status});
+      await _firestore.collection(Collections.payroll).doc(id).update({'status': status});
     } catch (e) {
-      print('Error updating payroll status: $e');
+      debugPrint('Error updating payroll status: $e');
       rethrow;
     }
   }
 
   Future<void> manualAddAttendance(AttendanceModel attendance) async {
     try {
-      await _firestore.collection('attendance').add(attendance.toMap());
+      await _firestore.collection(Collections.attendance).add(attendance.toMap());
     } catch (e) {
-      print('Error adding manual attendance: $e');
+      debugPrint('Error adding manual attendance: $e');
       rethrow;
     }
   }
