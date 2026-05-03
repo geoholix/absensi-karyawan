@@ -4,6 +4,7 @@ import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user_model.dart';
 import '../../models/office_location_model.dart';
+import '../../scripts/seeder.dart';
 import 'manage_locations_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
@@ -17,6 +18,16 @@ class AdminDashboard extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Admin - Kelola Pengguna'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.dataset),
+            onPressed: () async {
+              showDialog(context: context, builder: (_) => const Center(child: CircularProgressIndicator()));
+              await Seeder.seedDummyData();
+              Navigator.pop(context); // Close loading
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dummy data berhasil dimuat!')));
+            },
+            tooltip: 'Load Dummy Data',
+          ),
           IconButton(
             icon: const Icon(Icons.location_city),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageLocationsScreen())),
