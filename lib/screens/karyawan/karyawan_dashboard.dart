@@ -36,7 +36,13 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final uid = Provider.of<AuthProvider>(context, listen: false).userModel?.uid;
       if (uid != null) {
-        Provider.of<AttendanceProvider>(context, listen: false).fetchTodayAttendance(uid);
+        final attProvider = Provider.of<AttendanceProvider>(context, listen: false);
+        attProvider.fetchTodayAttendance(uid);
+        
+        final userModel = Provider.of<AuthProvider>(context, listen: false).userModel;
+        if (userModel != null) {
+          attProvider.fetchOfficeLocation(userModel.lokasiKerja);
+        }
       }
     });
   }
@@ -190,7 +196,7 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
             if (attendanceProvider.isLoading)
               const Center(child: CircularProgressIndicator())
             else if (today == null)
-              _buildCheckInAction(user)
+              _buildCheckInAction(user, attendanceProvider)
             else if (today.waktuPulang == null)
               _buildCheckOutAction(user)
             else
@@ -258,12 +264,12 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
     );
   }
 
-  Widget _buildCheckInAction(UserModel? user) {
-    bool isNonPramuka = user?.lokasiKerja == 'Non-Pramuka';
+  Widget _buildCheckInAction(UserModel? user, AttendanceProvider provider) {
+    bool hasShifts = provider.officeLocation?.hasShifts ?? false;
 
     return Column(
       children: [
-        if (isNonPramuka) ...[
+        if (hasShifts) ...[
           const Text('Pilih Shift Kerja Anda:'),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
@@ -284,12 +290,12 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
           width: double.infinity,
           height: 60,
           child: ElevatedButton(
-            onPressed: (isNonPramuka && _selectedShift == null)
+            onPressed: (hasShifts && _selectedShift == null)
                 ? null
                 : () async {
                     try {
                       await Provider.of<AttendanceProvider>(context, listen: false)
-                          .checkIn(user!, _selectedShift ?? 'Pramuka');
+                          .checkIn(user!, _selectedShift ?? 'Pagi');
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

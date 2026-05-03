@@ -10,6 +10,7 @@ import 'package:image/image.dart' as img;
 import '../models/attendance_model.dart';
 import '../models/user_model.dart';
 import '../models/payroll_model.dart';
+import '../models/office_location_model.dart';
 
 class AttendanceProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -19,8 +20,23 @@ class AttendanceProvider extends ChangeNotifier {
   AttendanceModel? _todayAttendance;
   AttendanceModel? get todayAttendance => _todayAttendance;
 
+  OfficeLocationModel? _officeLocation;
+  OfficeLocationModel? get officeLocation => _officeLocation;
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  Future<void> fetchOfficeLocation(String locationId) async {
+    try {
+      var doc = await _firestore.collection('office_locations').doc(locationId).get();
+      if (doc.exists) {
+        _officeLocation = OfficeLocationModel.fromMap(doc.data()!, doc.id);
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error fetching office location: $e');
+    }
+  }
 
   Future<void> fetchTodayAttendance(String uid) async {
     String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -139,6 +155,17 @@ class AttendanceProvider extends ChangeNotifier {
       Position? pos = await _getCurrentLocation();
       if (pos == null) throw 'Gagal mendapatkan lokasi GPS.';
 
+      // Geofencing Validation
+      if (_officeLocation != null && _officeLocation!.requireGeofencing) {
+        double distance = Geolocator.distanceBetween(
+          pos.latitude, pos.longitude,
+          _officeLocation!.latitude, _officeLocation!.longitude,
+        );
+        if (distance > _officeLocation!.radius) {
+          throw 'Anda berada di luar area kantor! Jarak Anda: ${distance.toStringAsFixed(0)}m (Maks: ${_officeLocation!.radius}m)';
+        }
+      }
+
       String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       String fileName = '${user.uid}_${today}_in.jpg';
       
@@ -178,6 +205,17 @@ class AttendanceProvider extends ChangeNotifier {
 
       Position? pos = await _getCurrentLocation();
       if (pos == null) throw 'Gagal mendapatkan lokasi GPS.';
+
+      // Geofencing Validation
+      if (_officeLocation != null && _officeLocation!.requireGeofencing) {
+        double distance = Geolocator.distanceBetween(
+          pos.latitude, pos.longitude,
+          _officeLocation!.latitude, _officeLocation!.longitude,
+        );
+        if (distance > _officeLocation!.radius) {
+          throw 'Anda berada di luar area kantor! Jarak Anda: ${distance.toStringAsFixed(0)}m (Maks: ${_officeLocation!.radius}m)';
+        }
+      }
 
       String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       String fileName = '${user.uid}_${today}_out.jpg';

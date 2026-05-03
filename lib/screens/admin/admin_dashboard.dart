@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/user_model.dart';
+import '../../models/office_location_model.dart';
+import 'manage_locations_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -15,6 +17,11 @@ class AdminDashboard extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Admin - Kelola Pengguna'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.location_city),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageLocationsScreen())),
+            tooltip: 'Kelola Lokasi Kantor',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => Provider.of<AuthProvider>(context, listen: false).signOut(),
@@ -93,13 +100,29 @@ class AdminDashboard extends StatelessWidget {
                       }).toList(),
                       onChanged: (val) => setState(() => selectedRole = val!),
                     ),
-                    DropdownButtonFormField<String>(
-                      value: selectedLokasi,
-                      decoration: const InputDecoration(labelText: 'Lokasi Kerja'),
-                      items: ['Pramuka', 'Non-Pramuka'].map((lok) {
-                        return DropdownMenuItem(value: lok, child: Text(lok));
-                      }).toList(),
-                      onChanged: (val) => setState(() => selectedLokasi = val!),
+                    StreamBuilder<List<OfficeLocationModel>>(
+                      stream: Provider.of<AdminProvider>(context, listen: false).getOfficeLocationsStream(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const CircularProgressIndicator();
+                        }
+                        final locations = snapshot.data!;
+                        // Add current location if it's missing from DB to prevent Dropdown crash
+                        if (!locations.any((l) => l.id == selectedLokasi)) {
+                          locations.add(OfficeLocationModel(
+                              id: selectedLokasi, name: selectedLokasi, 
+                              latitude: 0, longitude: 0, requireGeofencing: false, radius: 0, hasShifts: false));
+                        }
+
+                        return DropdownButtonFormField<String>(
+                          value: selectedLokasi,
+                          decoration: const InputDecoration(labelText: 'Lokasi Kerja'),
+                          items: locations.map((lok) {
+                            return DropdownMenuItem(value: lok.id, child: Text(lok.name));
+                          }).toList(),
+                          onChanged: (val) => setState(() => selectedLokasi = val!),
+                        );
+                      }
                     ),
                     TextField(
                       controller: honorNormalController,
