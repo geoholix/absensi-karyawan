@@ -197,6 +197,8 @@ class HrProvider extends ChangeNotifier {
       print('Error adding manual attendance: $e');
       rethrow;
     }
+  }
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 }
