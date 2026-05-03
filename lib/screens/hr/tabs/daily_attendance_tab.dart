@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/attendance_model.dart';
 import '../../../providers/hr_provider.dart';
 import '../../../providers/admin_provider.dart';
@@ -159,7 +160,7 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
     );
   }
 
-  void _showDetailDialog(BuildContext context, String type, DateTime? time, String? photoUrl, ll.GeoPoint? location) {
+  void _showDetailDialog(BuildContext context, String type, DateTime? time, String? photoUrl, GeoPoint? location) {
     if (time == null) return;
 
     showDialog(
