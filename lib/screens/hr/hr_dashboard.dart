@@ -55,7 +55,7 @@ class _HrDashboardState extends State<HrDashboard> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Analitik'),
           BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Harian'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_search), label: 'Laporan'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_search), label: 'Laporan Individu'),
           BottomNavigationBarItem(icon: Icon(Icons.event_available), label: 'Cuti'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Pengaturan'),
         ],

@@ -79,6 +79,17 @@ class Seeder {
         'honor_normal': 40000,
         'honor_libur': 50000,
       },
+      {
+        'uid': 'dummy_007',
+        'id_karyawan': '007',
+        'nama': 'Siti (Toko)',
+        'email': 'siti@dummy.com',
+        'bagian': 'Kasir',
+        'role': 'Karyawan',
+        'lokasi_kerja': 'Toko',
+        'honor_normal': 80000,
+        'honor_libur': 100000,
+      },
     ];
 
     for (var u in users) {
@@ -106,6 +117,9 @@ class Seeder {
       
       // Restu (006): Masuk 07:30, Pulang 16:30
       await _addAttendance(firestore, 'dummy_006', d, 7, 30, 16, 30, 'Pagi');
+
+      // Siti (007): Masuk 09:00, Pulang 18:00 (Toko)
+      await _addAttendance(firestore, 'dummy_007', d, 9, 0, 18, 0, 'Toko');
     }
   }
 
