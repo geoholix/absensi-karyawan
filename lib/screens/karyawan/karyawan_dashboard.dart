@@ -60,12 +60,14 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
     final today = attendanceProvider.todayAttendance;
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Presensi Karyawan'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black,
+        title: Row(
+          children: [
+            Image.asset('assets/images/logo.png', height: 40),
+            const SizedBox(width: 10),
+            const Text('Presensi Karyawan', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -83,10 +85,10 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundColor: const Color(0xFF1A237E),
+                  backgroundColor: const Color(0xFFE91E63),
                   child: Text(
                     user?.nama.substring(0, 1).toUpperCase() ?? 'U',
-                    style: const TextStyle(color: Colors.white, fontSize: 24),
+                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(width: 15),
@@ -109,8 +111,9 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
               width: double.infinity,
               padding: const EdgeInsets.all(30),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A237E),
+                color: const Color(0xFF1E1E1E),
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE91E63), width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
@@ -123,7 +126,7 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
                 children: [
                   Text(
                     DateFormat('EEEE, d MMMM yyyy').format(DateTime.now()),
-                    style: const TextStyle(color: Colors.white70, fontSize: 16),
+                    style: const TextStyle(color: Color(0xFFE91E63), fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -224,8 +227,9 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFF1E1E1E),
           borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: const Color(0xFF333333)),
         ),
         child: Column(
           children: [
@@ -249,8 +253,9 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFF1E1E1E),
             borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0xFF333333)),
           ),
           child: Column(
             children: [
@@ -276,7 +281,7 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
             value: _selectedShift,
             decoration: InputDecoration(
               filled: true,
-              fillColor: Colors.white,
+              fillColor: const Color(0xFF1E1E1E),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
             ),
             items: ['Pagi', 'Malam'].map((s) {

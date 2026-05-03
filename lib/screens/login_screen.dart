@@ -16,18 +16,17 @@ class LoginScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1A237E), Color(0xFF3949AB)],
+            colors: [Color(0xFF121212), Color(0xFF1E1E1E)],
           ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.fingerprint,
-              size: 100,
-              color: Colors.white,
+            Image.asset(
+              'assets/images/logo.png',
+              height: 180,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
             const Text(
               'ABSENSI KARYAWAN',
               style: TextStyle(
@@ -58,13 +57,13 @@ class LoginScreen extends StatelessWidget {
                     );
                   }
                 },
-                icon: const Icon(Icons.login, color: Colors.black),
+                icon: const Icon(Icons.login, color: Colors.white),
                 label: const Text(
                   'Masuk dengan Google',
-                  style: TextStyle(fontSize: 16, color: Colors.black),
+                  style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
+                  backgroundColor: const Color(0xFFE91E63),
                   padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),

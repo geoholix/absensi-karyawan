@@ -45,7 +45,30 @@ class MyApp extends StatelessWidget {
       title: 'Absensi Karyawan',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A237E)),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        primaryColor: const Color(0xFFE91E63),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFFE91E63),
+          secondary: Color(0xFFFF4081),
+          surface: Color(0xFF1E1E1E),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF121212),
+          foregroundColor: Color(0xFFE91E63),
+          elevation: 0,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFE91E63),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          ),
+        ),
+        cardTheme: const CardTheme(
+          color: Color(0xFF1E1E1E),
+          elevation: 4,
+        ),
         useMaterial3: true,
       ),
       home: const DashboardSelector(),
