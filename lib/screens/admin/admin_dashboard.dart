@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/admin_provider.dart';
@@ -18,16 +19,19 @@ class AdminDashboard extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Admin - Kelola Pengguna'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.dataset),
-            onPressed: () async {
-              showDialog(context: context, builder: (_) => const Center(child: CircularProgressIndicator()));
-              await Seeder.seedDummyData();
-              Navigator.pop(context); // Close loading
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dummy data berhasil dimuat!')));
-            },
-            tooltip: 'Load Dummy Data',
-          ),
+          // Seeder is a destructive dev tool — only available in debug builds.
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.dataset),
+              onPressed: () async {
+                showDialog(context: context, builder: (_) => const Center(child: CircularProgressIndicator()));
+                await Seeder.seedDummyData();
+                if (!context.mounted) return;
+                Navigator.pop(context); // Close loading
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dummy data berhasil dimuat!')));
+              },
+              tooltip: 'Load Dummy Data (debug only)',
+            ),
           IconButton(
             icon: const Icon(Icons.location_city),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManageLocationsScreen())),

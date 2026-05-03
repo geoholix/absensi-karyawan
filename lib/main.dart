@@ -9,17 +9,17 @@ import 'screens/dashboard_selector.dart';
 
 // Note: You must run 'flutterfire configure' to generate this file
 // For now, we use a placeholder or assume it exists if user already ran it.
-import 'firebase_options.dart'; 
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
-    print("Firebase initialization error: $e");
+    debugPrint('Firebase initialization error: $e');
     // In production, handle this gracefully
   }
 

@@ -41,7 +41,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
       // Get all users for mapping locations
       _users = await adminProvider.getUsersStream().first;
     } catch (e) {
-      print(e);
+      debugPrint('Analytics fetch error: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
+import '../utils/constants.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -30,13 +30,13 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _fetchUserData(String uid) async {
     try {
-      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
+      DocumentSnapshot doc = await _firestore.collection(Collections.users).doc(uid).get();
       if (doc.exists) {
         _userModel = UserModel.fromMap(doc.data() as Map<String, dynamic>);
         notifyListeners();
       }
     } catch (e) {
-      print('Error fetching user data: $e');
+      debugPrint('Error fetching user data: $e');
     }
   }
 
@@ -58,7 +58,7 @@ class AuthProvider extends ChangeNotifier {
           try {
             await _googleSignIn.initialize();
           } catch (e) {
-            print('GoogleSignIn init caught (likely hot restart): $e');
+            debugPrint('GoogleSignIn init caught (likely hot restart): $e');
           }
           _isGoogleSignInInitialized = true;
         }
@@ -85,7 +85,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (user != null) {
         // Check if user exists in Firestore
-        DocumentSnapshot doc = await _firestore.collection('users').doc(user.uid).get();
+        DocumentSnapshot doc = await _firestore.collection(Collections.users).doc(user.uid).get();
         if (!doc.exists) {
           // Create new user with default role 'Karyawan'
           UserModel newUser = UserModel(
@@ -94,13 +94,13 @@ class AuthProvider extends ChangeNotifier {
             nama: user.displayName ?? '',
             email: user.email ?? '',
             bagian: '',
-            role: 'Karyawan',
-            lokasiKerja: 'Pramuka',
+            role: Roles.karyawan,
+            lokasiKerja: 'Pramuka', // default office location, not a shift
             honorNormal: 0,
             honorLibur: 0,
             createdAt: DateTime.now(),
           );
-          await _firestore.collection('users').doc(user.uid).set(newUser.toMap());
+          await _firestore.collection(Collections.users).doc(user.uid).set(newUser.toMap());
           _userModel = newUser;
         } else {
           _userModel = UserModel.fromMap(doc.data() as Map<String, dynamic>);
@@ -111,7 +111,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      print('Error signing in with Google: $e');
+      debugPrint('Error signing in with Google: $e');
       _isLoading = false;
       notifyListeners();
       return false;

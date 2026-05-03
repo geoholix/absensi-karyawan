@@ -5,12 +5,13 @@ import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
 import '../models/attendance_model.dart';
 import '../models/user_model.dart';
 import '../models/payroll_model.dart';
 import '../models/office_location_model.dart';
+import '../utils/constants.dart';
+import '../utils/formatters.dart';
 
 class AttendanceProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -28,20 +29,20 @@ class AttendanceProvider extends ChangeNotifier {
 
   Future<void> fetchOfficeLocation(String locationId) async {
     try {
-      var doc = await _firestore.collection('office_locations').doc(locationId).get();
+      var doc = await _firestore.collection(Collections.officeLocations).doc(locationId).get();
       if (doc.exists) {
         _officeLocation = OfficeLocationModel.fromMap(doc.data()!, doc.id);
         notifyListeners();
       }
     } catch (e) {
-      print('Error fetching office location: $e');
+      debugPrint('Error fetching office location: $e');
     }
   }
 
   Future<void> fetchTodayAttendance(String uid) async {
-    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    String today = Formatters.isoDateKey(DateTime.now());
     var snapshot = await _firestore
-        .collection('attendance')
+        .collection(Collections.attendance)
         .where('uid', isEqualTo: uid)
         .where('tanggal', isEqualTo: today)
         .limit(1)
@@ -58,7 +59,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   Stream<List<AttendanceModel>> getAttendanceHistory(String uid) {
     return _firestore
-        .collection('attendance')
+        .collection(Collections.attendance)
         .where('uid', isEqualTo: uid)
         .orderBy('tanggal', descending: true)
         .snapshots()
@@ -71,7 +72,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   Stream<List<PayrollModel>> getPayrollHistory(String uid) {
     return _firestore
-        .collection('payroll')
+        .collection(Collections.payroll)
         .where('uid', isEqualTo: uid)
         .orderBy('periode_akhir', descending: true)
         .snapshots()
@@ -108,12 +109,27 @@ class AttendanceProvider extends ChangeNotifier {
     );
   }
 
+  /// Throws a user-facing message string if [pos] is outside the configured
+  /// office geofence. No-op when geofencing is disabled or unconfigured.
+  void _validateGeofence(Position pos) {
+    final office = _officeLocation;
+    if (office == null || !office.requireGeofencing) return;
+
+    final distance = Geolocator.distanceBetween(
+      pos.latitude, pos.longitude,
+      office.latitude, office.longitude,
+    );
+    if (distance > office.radius) {
+      throw 'Anda berada di luar area kantor! Jarak Anda: ${distance.toStringAsFixed(0)}m (Maks: ${office.radius}m)';
+    }
+  }
+
   Future<Uint8List> _processImage(XFile file, Position pos) async {
     final Uint8List bytes = await file.readAsBytes();
     img.Image? image = img.decodeImage(bytes);
     if (image == null) return bytes;
 
-    String date = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    String date = Formatters.stamp.format(DateTime.now());
     String coords = '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
     String text = '$date\n$coords';
 
@@ -155,20 +171,11 @@ class AttendanceProvider extends ChangeNotifier {
       Position? pos = await _getCurrentLocation();
       if (pos == null) throw 'Gagal mendapatkan lokasi GPS.';
 
-      // Geofencing Validation
-      if (_officeLocation != null && _officeLocation!.requireGeofencing) {
-        double distance = Geolocator.distanceBetween(
-          pos.latitude, pos.longitude,
-          _officeLocation!.latitude, _officeLocation!.longitude,
-        );
-        if (distance > _officeLocation!.radius) {
-          throw 'Anda berada di luar area kantor! Jarak Anda: ${distance.toStringAsFixed(0)}m (Maks: ${_officeLocation!.radius}m)';
-        }
-      }
+      _validateGeofence(pos);
 
-      String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      String today = Formatters.isoDateKey(DateTime.now());
       String fileName = '${user.uid}_${today}_in.jpg';
-      
+
       // Process with watermark
       Uint8List processedData = await _processImage(photo, pos);
       String photoUrl = await _uploadData(processedData, 'attendance/$fileName');
@@ -179,14 +186,14 @@ class AttendanceProvider extends ChangeNotifier {
         waktuMasuk: DateTime.now(),
         lokasiMasuk: GeoPoint(pos.latitude, pos.longitude),
         fotoMasukUrl: photoUrl,
-        shiftAktual: user.lokasiKerja == 'Pramuka' ? 'Pramuka' : shift,
-        status: 'Masuk',
+        shiftAktual: user.lokasiKerja == Shifts.pramuka ? Shifts.pramuka : shift,
+        status: AttendanceStatus.masuk,
       );
 
-      DocumentReference docRef = await _firestore.collection('attendance').add(newRecord.toMap());
+      DocumentReference docRef = await _firestore.collection(Collections.attendance).add(newRecord.toMap());
       _todayAttendance = AttendanceModel.fromMap(newRecord.toMap(), docRef.id);
     } catch (e) {
-      print('Check-in error: $e');
+      debugPrint('Check-in error: $e');
       rethrow;
     } finally {
       _isLoading = false;
@@ -206,26 +213,17 @@ class AttendanceProvider extends ChangeNotifier {
       Position? pos = await _getCurrentLocation();
       if (pos == null) throw 'Gagal mendapatkan lokasi GPS.';
 
-      // Geofencing Validation
-      if (_officeLocation != null && _officeLocation!.requireGeofencing) {
-        double distance = Geolocator.distanceBetween(
-          pos.latitude, pos.longitude,
-          _officeLocation!.latitude, _officeLocation!.longitude,
-        );
-        if (distance > _officeLocation!.radius) {
-          throw 'Anda berada di luar area kantor! Jarak Anda: ${distance.toStringAsFixed(0)}m (Maks: ${_officeLocation!.radius}m)';
-        }
-      }
+      _validateGeofence(pos);
 
-      String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      String today = Formatters.isoDateKey(DateTime.now());
       String fileName = '${user.uid}_${today}_out.jpg';
-      
+
       // Process with watermark
       Uint8List processedData = await _processImage(photo, pos);
       String photoUrl = await _uploadData(processedData, 'attendance/$fileName');
 
       DateTime now = DateTime.now();
-      
+
       // Calculate Hours
       Map<String, double> hours = _calculateWorkingHours(
         _todayAttendance!.waktuMasuk!,
@@ -233,18 +231,18 @@ class AttendanceProvider extends ChangeNotifier {
         _todayAttendance!.shiftAktual,
       );
 
-      await _firestore.collection('attendance').doc(_todayAttendance!.idAbsen).update({
+      await _firestore.collection(Collections.attendance).doc(_todayAttendance!.idAbsen).update({
         'waktu_pulang': Timestamp.fromDate(now),
         'lokasi_pulang': GeoPoint(pos.latitude, pos.longitude),
         'foto_pulang_url': photoUrl,
         'total_jam_normal': hours['normal'],
         'total_jam_lembur': hours['lembur'],
-        'status': 'Selesai',
+        'status': AttendanceStatus.selesai,
       });
 
       await fetchTodayAttendance(user.uid);
     } catch (e) {
-      print('Check-out error: $e');
+      debugPrint('Check-out error: $e');
       rethrow;
     } finally {
       _isLoading = false;
@@ -261,10 +259,10 @@ class AttendanceProvider extends ChangeNotifier {
     TimeOfDay normalStart;
     TimeOfDay normalEnd;
 
-    if (shift == 'Pramuka') {
+    if (shift == Shifts.pramuka) {
       normalStart = const TimeOfDay(hour: 7, minute: 0);
       normalEnd = const TimeOfDay(hour: 16, minute: 0);
-    } else if (shift == 'Pagi') {
+    } else if (shift == Shifts.pagi) {
       normalStart = const TimeOfDay(hour: 7, minute: 30);
       normalEnd = const TimeOfDay(hour: 16, minute: 30);
     } else { // Malam
@@ -289,16 +287,16 @@ class AttendanceProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      await _firestore.collection('leaves').add({
+      await _firestore.collection(Collections.leaves).add({
         'uid': uid,
         'tanggal_mulai': Timestamp.fromDate(start),
         'tanggal_selesai': Timestamp.fromDate(end),
         'alasan': alasan,
-        'status': 'Pending',
+        'status': LeaveStatus.pending,
         'created_at': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error submitting leave: $e');
+      debugPrint('Error submitting leave: $e');
       rethrow;
     } finally {
       _isLoading = false;
