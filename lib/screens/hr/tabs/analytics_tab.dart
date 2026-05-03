@@ -6,6 +6,7 @@ import '../../../providers/hr_provider.dart';
 import '../../../providers/admin_provider.dart';
 import '../../../models/attendance_model.dart';
 import '../../../models/leave_model.dart';
+import '../../../models/user_model.dart';
 
 class AnalyticsTab extends StatefulWidget {
   const AnalyticsTab({super.key});
@@ -15,12 +16,12 @@ class AnalyticsTab extends StatefulWidget {
 }
 
 class _AnalyticsTabState extends State<AnalyticsTab> {
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 6)); // Past 7 days including today
+  DateTime _startDate = DateTime.now().subtract(const Duration(days: 6));
   DateTime _endDate = DateTime.now();
   
   bool _isLoading = true;
   List<AttendanceModel> _attendanceData = [];
-  int _totalLeaves = 0;
+  List<UserModel> _users = [];
   
   @override
   void initState() {
@@ -33,16 +34,25 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
   Future<void> _fetchAnalyticsData() async {
     setState(() => _isLoading = true);
     final hrProvider = Provider.of<HrProvider>(context, listen: false);
+    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
     
     try {
       _attendanceData = await hrProvider.getAttendanceByDateRange(_startDate, _endDate);
-      // For leaves, we could do a real query, but for simplicity, we count from stream
-      // We will handle leaves count below if needed
+      // Get all users for mapping locations
+      _users = await adminProvider.getUsersStream().first;
     } catch (e) {
       print(e);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // Helper to get location color
+  Color _getLocationColor(String location) {
+    if (location.toLowerCase().contains('pramuka')) return const Color(0xFFE91E63);
+    if (location.toLowerCase().contains('bogor')) return const Color(0xFFFF9800);
+    if (location.toLowerCase().contains('toko')) return const Color(0xFF2196F3);
+    return Colors.green; // Default
   }
 
   @override
@@ -59,13 +69,15 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
           else ...[
             _buildSummaryCards(context),
             const SizedBox(height: 30),
-            const Text('Grafik Jam Kerja (Per Hari)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
+            const Text('Grafik Jam Kerja Harian', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            _buildLegend(),
+            const SizedBox(height: 10),
             _buildWorkingHoursChart(),
             const SizedBox(height: 30),
-            const Text('Estimasi Payroll Minggu Ini', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Estimasi Payroll Periode Ini', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-            _buildEstimatedPayrollCard(context),
+            _buildEstimatedPayrollCard(),
           ],
         ],
       ),
@@ -120,57 +132,117 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
 
   Widget _buildSummaryCards(BuildContext context) {
     // Unique workers in the period
-    final activeWorkers = _attendanceData.map((e) => e.uid).toSet().length;
+    final activeWorkersByLocation = <String, int>{};
+    int totalActive = 0;
 
+    final uniqueUids = _attendanceData.map((e) => e.uid).toSet();
+    for (var uid in uniqueUids) {
+      String loc = 'Lainnya';
+      try {
+        loc = _users.firstWhere((u) => u.uid == uid).lokasiKerja;
+      } catch (_) {}
+      
+      activeWorkersByLocation[loc] = (activeWorkersByLocation[loc] ?? 0) + 1;
+      totalActive++;
+    }
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Card(
+                color: const Color(0xFF1A237E),
+                child: Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.people, color: Colors.white, size: 30),
+                      const SizedBox(height: 5),
+                      const Text('Total Pekerja', style: TextStyle(color: Colors.white70)),
+                      Text('$totalActive Orang', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Card(
+                color: Colors.orange,
+                child: Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.event_busy, color: Colors.white, size: 30),
+                      const SizedBox(height: 5),
+                      const Text('Sedang Cuti', style: TextStyle(color: Colors.white70)),
+                      StreamBuilder<List<LeaveModel>>(
+                        stream: Provider.of<HrProvider>(context).getLeavesStream(),
+                        builder: (context, snapshot) {
+                          int approvedLeavesToday = 0;
+                          if (snapshot.hasData) {
+                            final now = DateTime.now();
+                            approvedLeavesToday = snapshot.data!.where((l) {
+                              return l.status == 'Approved' &&
+                                     now.isAfter(l.tanggalMulai.subtract(const Duration(days: 1))) &&
+                                     now.isBefore(l.tanggalSelesai.add(const Duration(days: 1)));
+                            }).length;
+                          }
+                          return Text('$approvedLeavesToday Orang', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white));
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // Breakdown Location Cards
+        Row(
+          children: activeWorkersByLocation.keys.map((loc) {
+            return Expanded(
+              child: Card(
+                color: _getLocationColor(loc).withOpacity(0.8),
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Text(loc, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      Text('${activeWorkersByLocation[loc]} org', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegend() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _legendItem('Pramuka', _getLocationColor('pramuka')),
+        const SizedBox(width: 10),
+        _legendItem('Bogor', _getLocationColor('bogor')),
+        const SizedBox(width: 10),
+        _legendItem('Toko', _getLocationColor('toko')),
+      ],
+    );
+  }
+
+  Widget _legendItem(String name, Color color) {
     return Row(
       children: [
-        Expanded(
-          child: Card(
-            color: const Color(0xFFE91E63),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  const Icon(Icons.people, color: Colors.white, size: 30),
-                  const SizedBox(height: 10),
-                  const Text('Pekerja Aktif', style: TextStyle(color: Colors.white70)),
-                  Text('$activeWorkers Orang', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 15),
-        Expanded(
-          child: Card(
-            color: Colors.orange,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  const Icon(Icons.event_busy, color: Colors.white, size: 30),
-                  const SizedBox(height: 10),
-                  const Text('Sedang Cuti', style: TextStyle(color: Colors.white70)),
-                  StreamBuilder<List<LeaveModel>>(
-                    stream: Provider.of<HrProvider>(context).getLeavesStream(),
-                    builder: (context, snapshot) {
-                      int approvedLeavesToday = 0;
-                      if (snapshot.hasData) {
-                        final now = DateTime.now();
-                        approvedLeavesToday = snapshot.data!.where((l) {
-                          return l.status == 'Approved' &&
-                                 now.isAfter(l.tanggalMulai.subtract(const Duration(days: 1))) &&
-                                 now.isBefore(l.tanggalSelesai.add(const Duration(days: 1)));
-                        }).length;
-                      }
-                      return Text('$approvedLeavesToday Orang', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white));
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+        Container(width: 12, height: 12, color: color),
+        const SizedBox(width: 4),
+        Text(name, style: const TextStyle(fontSize: 12)),
       ],
     );
   }
@@ -183,27 +255,60 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
       );
     }
 
-    // Aggregate by date
-    Map<String, double> aggregatedData = {};
+    // Aggregate by date and then by location
+    // Map<Date, Map<Location, Hours>>
+    Map<String, Map<String, double>> aggregatedData = {};
+    
     for (var record in _attendanceData) {
-      aggregatedData[record.tanggal] = (aggregatedData[record.tanggal] ?? 0) + record.totalJamNormal + record.totalJamLembur;
+      String loc = 'Lainnya';
+      try { loc = _users.firstWhere((u) => u.uid == record.uid).lokasiKerja; } catch (_) {}
+      
+      aggregatedData[record.tanggal] ??= {};
+      aggregatedData[record.tanggal]![loc] = (aggregatedData[record.tanggal]![loc] ?? 0) + record.totalJamNormal + record.totalJamLembur;
     }
 
-    // Sort dates
     final sortedKeys = aggregatedData.keys.toList()..sort();
     
     List<BarChartGroupData> barGroups = [];
     int i = 0;
+    double maxY = 0;
+
     for (var date in sortedKeys) {
+      final dailyData = aggregatedData[date]!;
+      List<BarChartRodStackItem> stackItems = [];
+      
+      double currentY = 0;
+      // We explicitly order Pramuka, Bogor, Toko if they exist
+      final locations = ['Pramuka', 'Bogor', 'Toko', 'Lainnya'];
+      
+      for (var loc in locations) {
+        if (dailyData.containsKey(loc)) {
+          final val = dailyData[loc]!;
+          stackItems.add(BarChartRodStackItem(currentY, currentY + val, _getLocationColor(loc)));
+          currentY += val;
+        }
+      }
+
+      // Fallback for any other locations
+      for (var loc in dailyData.keys) {
+        if (!locations.contains(loc)) {
+          final val = dailyData[loc]!;
+          stackItems.add(BarChartRodStackItem(currentY, currentY + val, _getLocationColor(loc)));
+          currentY += val;
+        }
+      }
+
+      if (currentY > maxY) maxY = currentY;
+
       barGroups.add(
         BarChartGroupData(
           x: i,
           barRods: [
             BarChartRodData(
-              toY: aggregatedData[date]!,
-              color: const Color(0xFFE91E63),
-              width: 15,
-              borderRadius: BorderRadius.circular(4),
+              toY: currentY,
+              width: 20,
+              borderRadius: BorderRadius.circular(2),
+              rodStackItems: stackItems,
             ),
           ],
         )
@@ -221,7 +326,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
-          maxY: (aggregatedData.values.reduce((a, b) => a > b ? a : b) + 10).ceilToDouble(),
+          maxY: (maxY + 10).ceilToDouble(),
           barTouchData: BarTouchData(enabled: true),
           titlesData: FlTitlesData(
             show: true,
@@ -260,54 +365,63 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
     );
   }
 
-  Widget _buildEstimatedPayrollCard(BuildContext context) {
-    final users = Provider.of<AdminProvider>(context, listen: false).users;
+  Widget _buildEstimatedPayrollCard() {
+    final formatCurrency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     
-    // Simple estimation: Sum of (Total Jam Normal / 8 * Honor Normal) + (Total Jam Lembur * (Honor Normal/8))
-    // We do this per user based on _attendanceData which respects the selected date range.
-    double estimatedTotal = 0;
+    double totalAll = 0;
+    Map<String, double> totalByLocation = {};
 
-    for (var u in users) {
+    for (var u in _users) {
       final userRecords = _attendanceData.where((r) => r.uid == u.uid);
       
       double userTotalJamNormal = 0;
       double userTotalJamLembur = 0;
-      int liburDays = 0; // Simplified
       
       for (var r in userRecords) {
         userTotalJamNormal += r.totalJamNormal;
         userTotalJamLembur += r.totalJamLembur;
-        // In real logic, determine if the record date is a holiday/weekend
       }
 
-      // Convert hours to days roughly for normal honor, assume 8 hrs = 1 day
       double normalDays = userTotalJamNormal / 8;
       double normalPay = normalDays * u.honorNormal;
       double lemburPay = userTotalJamLembur * (u.honorNormal / 8);
 
-      estimatedTotal += (normalPay + lemburPay);
+      double userTotalPay = normalPay + lemburPay;
+      
+      totalAll += userTotalPay;
+      totalByLocation[u.lokasiKerja] = (totalByLocation[u.lokasiKerja] ?? 0) + userTotalPay;
     }
 
-    final formatCurrency = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-
     return Card(
-      color: const Color(0xFF1A237E), // Contrast color
+      color: const Color(0xFF1A237E),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.account_balance_wallet, size: 40, color: Colors.white),
-            const SizedBox(width: 20),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Proyeksi Periode (${DateFormat('dd/MM').format(_startDate)} - ${DateFormat('dd/MM').format(_endDate)})', 
-                  style: const TextStyle(color: Colors.white70)),
-                const SizedBox(height: 5),
-                Text(formatCurrency.format(estimatedTotal), 
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-              ],
-            ),
+            const Text('Total Proyeksi:', style: TextStyle(color: Colors.white70)),
+            Text(formatCurrency.format(totalAll), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+            const Divider(color: Colors.white30, height: 30),
+            const Text('Rincian per Lokasi:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            ...totalByLocation.keys.map((loc) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Container(width: 10, height: 10, color: _getLocationColor(loc)),
+                        const SizedBox(width: 8),
+                        Text(loc, style: const TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                    Text(formatCurrency.format(totalByLocation[loc]), style: const TextStyle(color: Colors.white)),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       ),

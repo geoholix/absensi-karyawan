@@ -7,6 +7,8 @@ import '../../../models/attendance_model.dart';
 import '../../../providers/hr_provider.dart';
 import '../../../providers/admin_provider.dart';
 
+import '../../../models/user_model.dart';
+
 class DailyAttendanceTab extends StatefulWidget {
   const DailyAttendanceTab({super.key});
 
@@ -74,35 +76,134 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
 
               final records = snapshot.data!;
 
-              return ListView.builder(
-                itemCount: records.length,
-                itemBuilder: (context, index) {
-                  final record = records[index];
-                  return Card(
-                    color: const Color(0xFF1E1E1E),
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: record.status == 'Selesai' ? Colors.green : Colors.orange,
-                        child: const Icon(Icons.person, color: Colors.white),
-                      ),
-                      title: Text(getUserName(record.uid), style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(
-                        'Masuk: ${record.waktuMasuk != null ? DateFormat('HH:mm').format(record.waktuMasuk!) : '-'} | '
-                        'Pulang: ${record.waktuPulang != null ? DateFormat('HH:mm').format(record.waktuPulang!) : '-'}',
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.map, color: Colors.blue),
-                        onPressed: () => _showSingleLocationMap(context, record),
-                      ),
+              return Stack(
+                children: [
+                  ListView.builder(
+                    itemCount: records.length,
+                    itemBuilder: (context, index) {
+                      final record = records[index];
+                      return Card(
+                        color: const Color(0xFF1E1E1E),
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: record.status == 'Selesai' ? Colors.green : Colors.orange,
+                            child: const Icon(Icons.person, color: Colors.white),
+                          ),
+                          title: Text(getUserName(record.uid), style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                            'Masuk: ${record.waktuMasuk != null ? DateFormat('HH:mm').format(record.waktuMasuk!) : '-'} | '
+                            'Pulang: ${record.waktuPulang != null ? DateFormat('HH:mm').format(record.waktuPulang!) : '-'}\n'
+                            'Shift: ${record.shiftAktual}',
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.map, color: Colors.blue),
+                            onPressed: () => _showSingleLocationMap(context, record),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  Positioned(
+                    bottom: 16,
+                    right: 16,
+                    child: FloatingActionButton(
+                      onPressed: () => _showManualEntryDialog(context, hrProvider, users),
+                      backgroundColor: const Color(0xFFE91E63),
+                      child: const Icon(Icons.add),
                     ),
-                  );
-                },
+                  ),
+                ],
               );
             },
           ),
         ),
       ],
+    );
+  }
+
+  void _showManualEntryDialog(BuildContext context, HrProvider hrProvider, List<UserModel> users) {
+    UserModel? selectedUser;
+    TimeOfDay? masukTime;
+    TimeOfDay? pulangTime;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Input Absen Manual'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<UserModel>(
+                      decoration: const InputDecoration(labelText: 'Pilih Karyawan'),
+                      items: users.map((u) => DropdownMenuItem(value: u, child: Text(u.nama))).toList(),
+                      onChanged: (val) => setState(() => selectedUser = val),
+                    ),
+                    const SizedBox(height: 10),
+                    ListTile(
+                      title: const Text('Waktu Masuk'),
+                      subtitle: Text(masukTime?.format(context) ?? 'Belum diset'),
+                      trailing: const Icon(Icons.access_time),
+                      onTap: () async {
+                        final picked = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+                        if (picked != null) setState(() => masukTime = picked);
+                      },
+                    ),
+                    ListTile(
+                      title: const Text('Waktu Pulang'),
+                      subtitle: Text(pulangTime?.format(context) ?? 'Belum diset'),
+                      trailing: const Icon(Icons.access_time),
+                      onTap: () async {
+                        final picked = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+                        if (picked != null) setState(() => pulangTime = picked);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+                ElevatedButton(
+                  onPressed: () {
+                    if (selectedUser == null || masukTime == null || pulangTime == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lengkapi semua data.')));
+                      return;
+                    }
+
+                    DateTime masukDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, masukTime!.hour, masukTime!.minute);
+                    DateTime pulangDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, pulangTime!.hour, pulangTime!.minute);
+                    
+                    double totalHours = pulangDt.difference(masukDt).inMinutes / 60.0;
+                    double jamNormal = totalHours > 8 ? 8 : totalHours;
+                    double jamLembur = totalHours > 8 ? totalHours - 8 : 0;
+
+                    final record = AttendanceModel(
+                      idAbsen: '',
+                      uid: selectedUser!.uid,
+                      tanggal: DateFormat('yyyy-MM-dd').format(_selectedDate),
+                      waktuMasuk: masukDt,
+                      waktuPulang: pulangDt,
+                      shiftAktual: 'Manual HR',
+                      totalJamNormal: jamNormal,
+                      totalJamLembur: jamLembur,
+                      status: 'Selesai',
+                    );
+
+                    hrProvider.manualAddAttendance(record);
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Absensi manual berhasil disimpan.')));
+                  },
+                  child: const Text('Simpan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

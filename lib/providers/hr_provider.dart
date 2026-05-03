@@ -132,6 +132,7 @@ class HrProvider extends ChangeNotifier {
           gajiLembur: gajiLembur,
           adjustment: 0,
           totalPenerimaan: gajiPokok + gajiLibur + gajiLembur,
+          status: 'Pending',
         );
 
         await _firestore.collection('payroll').add(payroll.toMap());
@@ -176,6 +177,24 @@ class HrProvider extends ChangeNotifier {
       }
     } catch (e) {
       print('Error updating adjustment: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updatePayrollStatus(String id, String status) async {
+    try {
+      await _firestore.collection('payroll').doc(id).update({'status': status});
+    } catch (e) {
+      print('Error updating payroll status: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> manualAddAttendance(AttendanceModel attendance) async {
+    try {
+      await _firestore.collection('attendance').add(attendance.toMap());
+    } catch (e) {
+      print('Error adding manual attendance: $e');
       rethrow;
     }
   }

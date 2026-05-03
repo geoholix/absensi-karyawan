@@ -13,6 +13,7 @@ class PayrollModel {
   final double gajiLembur;
   final double adjustment;
   final double totalPenerimaan;
+  final String status; // 'Pending' or 'Dibayar'
 
   PayrollModel({
     this.idPayroll,
@@ -27,6 +28,7 @@ class PayrollModel {
     required this.gajiLembur,
     required this.adjustment,
     required this.totalPenerimaan,
+    required this.status,
   });
 
   factory PayrollModel.fromMap(Map<String, dynamic> map, String id) {
@@ -43,6 +45,7 @@ class PayrollModel {
       gajiLembur: (map['gaji_lembur'] ?? 0).toDouble(),
       adjustment: (map['adjustment'] ?? 0).toDouble(),
       totalPenerimaan: (map['total_penerimaan'] ?? 0).toDouble(),
+      status: map['status'] ?? 'Pending',
     );
   }
 
@@ -59,6 +62,7 @@ class PayrollModel {
       'gaji_lembur': gajiLembur,
       'adjustment': adjustment,
       'total_penerimaan': totalPenerimaan,
+      'status': status,
     };
   }
 }

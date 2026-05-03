@@ -120,11 +120,22 @@ class _PayrollScreenState extends State<PayrollScreen> {
                   itemCount: payrolls.length,
                   itemBuilder: (context, index) {
                     final payroll = payrolls[index];
-                    return ListTile(
-                      title: Text('UID: ${payroll.uid.substring(0, 8)}...'),
-                      subtitle: Text('${DateFormat('d MMM').format(payroll.periodeAwal)} - ${DateFormat('d MMM').format(payroll.periodeAkhir)}'),
-                      trailing: Text(currencyFormat.format(payroll.totalPenerimaan), style: const TextStyle(fontWeight: FontWeight.bold)),
-                      onTap: () => _showAdjustmentDialog(context, payroll),
+                    return Card(
+                      color: payroll.status == 'Dibayar' ? Colors.green.shade900 : const Color(0xFF1E1E1E),
+                      child: ListTile(
+                        leading: Checkbox(
+                          value: payroll.status == 'Dibayar',
+                          onChanged: (bool? value) {
+                            String newStatus = (value == true) ? 'Dibayar' : 'Pending';
+                            hrProvider.updatePayrollStatus(payroll.idPayroll!, newStatus);
+                          },
+                          activeColor: Colors.greenAccent,
+                        ),
+                        title: Text('UID: ${payroll.uid.substring(0, 8)}...'),
+                        subtitle: Text('${DateFormat('d MMM').format(payroll.periodeAwal)} - ${DateFormat('d MMM').format(payroll.periodeAkhir)}\nStatus: ${payroll.status}'),
+                        trailing: Text(currencyFormat.format(payroll.totalPenerimaan), style: const TextStyle(fontWeight: FontWeight.bold)),
+                        onTap: () => _showAdjustmentDialog(context, payroll),
+                      ),
                     );
                   },
                 );
