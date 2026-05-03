@@ -284,4 +284,25 @@ class AttendanceProvider extends ChangeNotifier {
 
     return {'normal': normal, 'lembur': lembur};
   }
+
+  Future<void> submitLeave(String uid, DateTime start, DateTime end, String alasan) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _firestore.collection('leaves').add({
+        'uid': uid,
+        'tanggal_mulai': Timestamp.fromDate(start),
+        'tanggal_selesai': Timestamp.fromDate(end),
+        'alasan': alasan,
+        'status': 'Pending',
+        'created_at': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error submitting leave: $e');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }

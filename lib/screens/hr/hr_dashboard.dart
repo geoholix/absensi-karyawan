@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as ll;
-import '../../models/attendance_model.dart';
-import '../../providers/hr_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/admin_provider.dart';
 import 'payroll_screen.dart';
+
+import 'tabs/analytics_tab.dart';
+import 'tabs/daily_attendance_tab.dart';
+import 'tabs/employee_report_tab.dart';
+import 'tabs/leave_approvals_tab.dart';
 
 class HrDashboard extends StatefulWidget {
   const HrDashboard({super.key});
@@ -17,15 +16,20 @@ class HrDashboard extends StatefulWidget {
 }
 
 class _HrDashboardState extends State<HrDashboard> {
-  DateTime _selectedDate = DateTime.now();
+  int _currentIndex = 0;
+
+  final List<Widget> _tabs = [
+    const AnalyticsTab(),
+    const DailyAttendanceTab(),
+    const EmployeeReportTab(),
+    const LeaveApprovalsTab(),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final hrProvider = Provider.of<HrProvider>(context);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('HR - Monitoring Absensi'),
+        title: const Text('HR - Monitoring Absensi', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.payments),
@@ -38,235 +42,22 @@ class _HrDashboardState extends State<HrDashboard> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Date Selector
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate,
-                      firstDate: DateTime(2023),
-                      lastDate: DateTime.now(),
-                    );
-                    if (picked != null) setState(() => _selectedDate = picked);
-                  },
-                  icon: const Icon(Icons.calendar_today),
-                  label: const Text('Pilih Tanggal'),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: StreamBuilder<List<AttendanceModel>>(
-              stream: hrProvider.getDailyAttendanceStream(_selectedDate),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Tidak ada data absensi untuk tanggal ini.'));
-                }
-
-                final records = snapshot.data!;
-
-                return ListView.builder(
-                  itemCount: records.length,
-                  itemBuilder: (context, index) {
-                    final record = records[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: record.status == 'Selesai' ? Colors.green : Colors.orange,
-                          child: const Icon(Icons.person, color: Colors.white),
-                        ),
-                        title: Text('UID: ${record.uid.substring(0, 8)}...'), // Should resolve to name
-                        subtitle: Text(
-                          'Masuk: ${record.waktuMasuk != null ? DateFormat('HH:mm').format(record.waktuMasuk!) : '-'} | '
-                          'Pulang: ${record.waktuPulang != null ? DateFormat('HH:mm').format(record.waktuPulang!) : '-'}',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.map, color: Colors.blue),
-                              onPressed: () => _showLocationMap(context, record),
-                            ),
-                            const Icon(Icons.edit),
-                          ],
-                        ),
-                        onTap: () => _showEditAttendanceDialog(context, record),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
+      body: _tabs[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: const Color(0xFF1E1E1E),
+        selectedItemColor: const Color(0xFFE91E63),
+        unselectedItemColor: Colors.white70,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Analitik'),
+          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Harian'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_search), label: 'Laporan'),
+          BottomNavigationBarItem(icon: Icon(Icons.event_available), label: 'Cuti'),
         ],
       ),
     );
   }
-
-  void _showLocationMap(BuildContext context, AttendanceModel record) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        List<Marker> markers = [];
-        ll.LatLng? center;
-
-        if (record.lokasiMasuk != null) {
-          center = ll.LatLng(record.lokasiMasuk!.latitude, record.lokasiMasuk!.longitude);
-          markers.add(
-            Marker(
-              point: center,
-              width: 40,
-              height: 40,
-              child: const Icon(Icons.location_on, color: Colors.green, size: 40),
-            ),
-          );
-        }
-
-        if (record.lokasiPulang != null) {
-          center ??= ll.LatLng(record.lokasiPulang!.latitude, record.lokasiPulang!.longitude);
-          markers.add(
-            Marker(
-              point: ll.LatLng(record.lokasiPulang!.latitude, record.lokasiPulang!.longitude),
-              width: 40,
-              height: 40,
-              child: const Icon(Icons.location_on, color: Colors.orange, size: 40),
-            ),
-          );
-        }
-
-        return AlertDialog(
-          title: const Text('Lokasi Presensi'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 400,
-            child: center == null
-                ? const Center(child: Text('Data lokasi tidak tersedia.'))
-                : FlutterMap(
-                    options: MapOptions(
-                      initialCenter: center,
-                      initialZoom: 15,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.geoholix.absensi_karyawan',
-                      ),
-                      MarkerLayer(markers: markers),
-                    ],
-                  ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup')),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showEditAttendanceDialog(BuildContext context, AttendanceModel record) {
-    // Basic editing for Masuk and Pulang times
-    TimeOfDay? masukTime = record.waktuMasuk != null ? TimeOfDay.fromDateTime(record.waktuMasuk!) : null;
-    TimeOfDay? pulangTime = record.waktuPulang != null ? TimeOfDay.fromDateTime(record.waktuPulang!) : null;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Revisi Absensi'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    title: const Text('Waktu Masuk'),
-                    subtitle: Text(masukTime?.format(context) ?? 'Belum Absen'),
-                    trailing: const Icon(Icons.access_time),
-                    onTap: () async {
-                      final picked = await showTimePicker(context: context, initialTime: masukTime ?? TimeOfDay.now());
-                      if (picked != null) setState(() => masukTime = picked);
-                    },
-                  ),
-                  ListTile(
-                    title: const Text('Waktu Pulang'),
-                    subtitle: Text(pulangTime?.format(context) ?? 'Belum Absen'),
-                    trailing: const Icon(Icons.access_time),
-                    onTap: () async {
-                      final picked = await showTimePicker(context: context, initialTime: pulangTime ?? TimeOfDay.now());
-                      if (picked != null) setState(() => pulangTime = picked);
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-                ElevatedButton(
-                  onPressed: () {
-                    // Update the record (simplified update)
-                    DateTime? newMasuk = record.waktuMasuk;
-                    if (masukTime != null) {
-                      newMasuk = DateTime(
-                        record.waktuMasuk?.year ?? _selectedDate.year,
-                        record.waktuMasuk?.month ?? _selectedDate.month,
-                        record.waktuMasuk?.day ?? _selectedDate.day,
-                        masukTime!.hour,
-                        masukTime!.minute,
-                      );
-                    }
-
-                    DateTime? newPulang = record.waktuPulang;
-                    if (pulangTime != null) {
-                      newPulang = DateTime(
-                        record.waktuPulang?.year ?? _selectedDate.year,
-                        record.waktuPulang?.month ?? _selectedDate.month,
-                        record.waktuPulang?.day ?? _selectedDate.day,
-                        pulangTime!.hour,
-                        pulangTime!.minute,
-                      );
-                    }
-
-                    final updatedRecord = AttendanceModel(
-                      idAbsen: record.idAbsen,
-                      uid: record.uid,
-                      tanggal: record.tanggal,
-                      waktuMasuk: newMasuk,
-                      lokasiMasuk: record.lokasiMasuk,
-                      fotoMasukUrl: record.fotoMasukUrl,
-                      waktuPulang: newPulang,
-                      lokasiPulang: record.lokasiPulang,
-                      fotoPulangUrl: record.fotoPulangUrl,
-                      shiftAktual: record.shiftAktual,
-                      totalJamNormal: record.totalJamNormal, // HR should probably trigger recalculate or manual
-                      totalJamLembur: record.totalJamLembur,
-                      status: 'Revisi HR',
-                    );
-
-                    Provider.of<HrProvider>(context, listen: false).updateAttendance(updatedRecord);
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Simpan Perubahan'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
 }
+

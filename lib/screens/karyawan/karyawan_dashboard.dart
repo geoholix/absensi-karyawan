@@ -7,6 +7,7 @@ import '../../providers/attendance_provider.dart';
 import '../../models/user_model.dart';
 import 'attendance_history_screen.dart';
 import 'payslip_screen.dart';
+import 'leave_request_screen.dart';
 
 class KaryawanDashboard extends StatefulWidget {
   const KaryawanDashboard({super.key});
@@ -190,6 +191,14 @@ class _KaryawanDashboardState extends State<KaryawanDashboard> {
                   Icons.receipt_long,
                   Colors.purple,
                   const PayslipScreen(),
+                ),
+                const SizedBox(width: 15),
+                _buildMenuCard(
+                  context,
+                  'Cuti',
+                  Icons.event_busy,
+                  Colors.pinkAccent,
+                  const LeaveRequestScreen(),
                 ),
               ],
             ),

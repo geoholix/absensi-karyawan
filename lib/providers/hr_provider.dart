@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/attendance_model.dart';
 import '../models/user_model.dart';
 import '../models/payroll_model.dart';
+import '../models/leave_model.dart';
 
 class HrProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -19,6 +20,46 @@ class HrProvider extends ChangeNotifier {
         return AttendanceModel.fromMap(doc.data(), doc.id);
       }).toList();
     });
+  }
+
+  // --- Leave Management ---
+  Stream<List<LeaveModel>> getLeavesStream() {
+    return _firestore
+        .collection('leaves')
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return LeaveModel.fromMap(doc.data(), doc.id);
+      }).toList();
+    });
+  }
+
+  Future<void> updateLeaveStatus(String id, String status) async {
+    try {
+      await _firestore.collection('leaves').doc(id).update({'status': status});
+    } catch (e) {
+      print('Error updating leave: $e');
+      rethrow;
+    }
+  }
+
+  // --- Analytics & Reporting ---
+  Future<List<AttendanceModel>> getAttendanceByDateRange(DateTime start, DateTime end, {String? uid}) async {
+    String startStr = DateFormat('yyyy-MM-dd').format(start);
+    String endStr = DateFormat('yyyy-MM-dd').format(end);
+
+    Query query = _firestore
+        .collection('attendance')
+        .where('tanggal', isGreaterThanOrEqualTo: startStr)
+        .where('tanggal', isLessThanOrEqualTo: endStr);
+    
+    if (uid != null) {
+      query = query.where('uid', isEqualTo: uid);
+    }
+
+    var snapshot = await query.get();
+    return snapshot.docs.map((doc) => AttendanceModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
   }
 
   Future<void> updateAttendance(AttendanceModel attendance) async {
