@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'karyawan/karyawan_dashboard.dart';
-import 'admin/admin_dashboard.dart';
 import 'hr/hr_dashboard.dart';
 
 class DashboardSelector extends StatelessWidget {
@@ -20,7 +19,6 @@ class DashboardSelector extends StatelessWidget {
     // Role-based routing
     switch (authProvider.userModel!.role) {
       case 'Admin':
-        return const AdminDashboard();
       case 'HR':
         return const HrDashboard();
       case 'Karyawan':

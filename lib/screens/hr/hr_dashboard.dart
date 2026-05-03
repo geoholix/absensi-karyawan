@@ -7,6 +7,7 @@ import 'tabs/analytics_tab.dart';
 import 'tabs/daily_attendance_tab.dart';
 import 'tabs/employee_report_tab.dart';
 import 'tabs/leave_approvals_tab.dart';
+import 'tabs/settings_tab.dart';
 
 class HrDashboard extends StatefulWidget {
   const HrDashboard({super.key});
@@ -23,6 +24,7 @@ class _HrDashboardState extends State<HrDashboard> {
     const DailyAttendanceTab(),
     const EmployeeReportTab(),
     const LeaveApprovalsTab(),
+    const SettingsTab(),
   ];
 
   @override
@@ -55,6 +57,7 @@ class _HrDashboardState extends State<HrDashboard> {
           BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Harian'),
           BottomNavigationBarItem(icon: Icon(Icons.person_search), label: 'Laporan'),
           BottomNavigationBarItem(icon: Icon(Icons.event_available), label: 'Cuti'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Pengaturan'),
         ],
       ),
     );
