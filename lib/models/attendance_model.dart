@@ -13,7 +13,10 @@ class AttendanceModel {
   final String shiftAktual; // Pagi, Malam, Pramuka
   final double totalJamNormal;
   final double totalJamLembur;
+  final double lemburMasuk;
+  final double lemburPulang;
   final String status; // Selesai, Revisi HR, dll.
+  final String? keterangan;
 
   AttendanceModel({
     this.idAbsen,
@@ -28,7 +31,10 @@ class AttendanceModel {
     required this.shiftAktual,
     this.totalJamNormal = 0,
     this.totalJamLembur = 0,
+    this.lemburMasuk = 0,
+    this.lemburPulang = 0,
     this.status = 'Menunggu',
+    this.keterangan,
   });
 
   factory AttendanceModel.fromMap(Map<String, dynamic> map, String id) {
@@ -45,7 +51,10 @@ class AttendanceModel {
       shiftAktual: map['shift_aktual'] ?? '',
       totalJamNormal: (map['total_jam_normal'] ?? 0).toDouble(),
       totalJamLembur: (map['total_jam_lembur'] ?? 0).toDouble(),
+      lemburMasuk: (map['lembur_masuk'] ?? 0).toDouble(),
+      lemburPulang: (map['lembur_pulang'] ?? 0).toDouble(),
       status: map['status'] ?? 'Menunggu',
+      keterangan: map['keterangan'],
     );
   }
 
@@ -62,7 +71,10 @@ class AttendanceModel {
       'shift_aktual': shiftAktual,
       'total_jam_normal': totalJamNormal,
       'total_jam_lembur': totalJamLembur,
+      'lembur_masuk': lemburMasuk,
+      'lembur_pulang': lemburPulang,
       'status': status,
+      'keterangan': keterangan,
     };
   }
 }

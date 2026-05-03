@@ -199,6 +199,17 @@ class HrProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> updateAttendance(AttendanceModel record) async {
+    try {
+      if (record.idAbsen != null && record.idAbsen!.isNotEmpty) {
+        await _firestore.collection('attendance').doc(record.idAbsen).update(record.toMap());
+      }
+    } catch (e) {
+      print('Error updating attendance: $e');
+      rethrow;
+    }
+  }
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 }
