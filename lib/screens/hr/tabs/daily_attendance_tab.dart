@@ -78,31 +78,45 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
 
               return Stack(
                 children: [
-                  ListView.builder(
-                    itemCount: records.length,
-                    itemBuilder: (context, index) {
-                      final record = records[index];
-                      return Card(
-                        color: const Color(0xFF1E1E1E),
-                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: record.status == 'Selesai' ? Colors.green : Colors.orange,
-                            child: const Icon(Icons.person, color: Colors.white),
-                          ),
-                          title: Text(getUserName(record.uid), style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                            'Masuk: ${record.waktuMasuk != null ? DateFormat('HH:mm').format(record.waktuMasuk!) : '-'} | '
-                            'Pulang: ${record.waktuPulang != null ? DateFormat('HH:mm').format(record.waktuPulang!) : '-'}\n'
-                            'Shift: ${record.shiftAktual}',
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.map, color: Colors.blue),
-                            onPressed: () => _showSingleLocationMap(context, record),
-                          ),
-                        ),
-                      );
-                    },
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SingleChildScrollView(
+                      child: DataTable(
+                        headingRowColor: MaterialStateProperty.all(const Color(0xFF1A237E)),
+                        headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        dataRowColor: MaterialStateProperty.all(const Color(0xFF1E1E1E)),
+                        columns: const [
+                          DataColumn(label: Text('Nama Karyawan')),
+                          DataColumn(label: Text('Masuk')),
+                          DataColumn(label: Text('Pulang')),
+                          DataColumn(label: Text('Shift')),
+                          DataColumn(label: Text('Lembur Masuk')),
+                          DataColumn(label: Text('Lembur Pulang')),
+                          DataColumn(label: Text('Aksi')),
+                        ],
+                        rows: records.map((record) {
+                          // Untuk sementara Lembur Pulang merepresentasikan totalJamLembur
+                          final lemburPulang = record.totalJamLembur > 0 ? '${record.totalJamLembur.toStringAsFixed(1)} Jam' : '-';
+                          
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(getUserName(record.uid), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
+                              DataCell(Text(record.waktuMasuk != null ? DateFormat('HH:mm').format(record.waktuMasuk!) : '-', style: const TextStyle(color: Colors.white70))),
+                              DataCell(Text(record.waktuPulang != null ? DateFormat('HH:mm').format(record.waktuPulang!) : '-', style: const TextStyle(color: Colors.white70))),
+                              DataCell(Text(record.shiftAktual, style: const TextStyle(color: Colors.white70))),
+                              DataCell(const Text('-', style: TextStyle(color: Colors.white70))), // Lembur masuk default -
+                              DataCell(Text(lemburPulang, style: const TextStyle(color: Colors.white70))),
+                              DataCell(
+                                IconButton(
+                                  icon: const Icon(Icons.map, color: Colors.blue),
+                                  onPressed: () => _showSingleLocationMap(context, record),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ),
                   Positioned(
                     bottom: 16,
