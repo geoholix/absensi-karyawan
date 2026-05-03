@@ -7,8 +7,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/attendance_model.dart';
 import '../../../providers/hr_provider.dart';
 import '../../../providers/admin_provider.dart';
-
 import '../../../models/user_model.dart';
+import '../../../utils/constants.dart';
+import '../../../utils/formatters.dart';
 
 class DailyAttendanceTab extends StatefulWidget {
   const DailyAttendanceTab({super.key});
@@ -23,19 +24,10 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
   @override
   Widget build(BuildContext context) {
     final hrProvider = Provider.of<HrProvider>(context);
-    final users = Provider.of<AdminProvider>(context, listen: false).users;
-
-    String getUserName(String uid) {
-      try {
-        return users.firstWhere((u) => u.uid == uid).nama;
-      } catch (e) {
-        return uid.substring(0, 8);
-      }
-    }
+    final users = Provider.of<AdminProvider>(context).users;
 
     return Column(
       children: [
-        // Date Selector & Map Button
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
@@ -63,95 +55,90 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
             ],
           ),
         ),
-
         Expanded(
           child: StreamBuilder<List<AttendanceModel>>(
             stream: hrProvider.getDailyAttendanceStream(_selectedDate),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text('Tidak ada data absensi untuk tanggal ini.'));
+              if (users.isEmpty) {
+                return const Center(child: Text('Belum ada karyawan terdaftar di Pengaturan.'));
               }
 
-              final records = snapshot.data!;
+              final records = snapshot.data ?? const <AttendanceModel>[];
+              final byUid = <String, AttendanceModel>{
+                for (final r in records) r.uid: r,
+              };
 
-              return Stack(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SingleChildScrollView(
-                        child: DataTable(
-                          columnSpacing: 20,
-                          headingRowColor: MaterialStateProperty.all(const Color(0xFF1A237E)),
-                          headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          dataRowColor: MaterialStateProperty.all(const Color(0xFF1E1E1E)),
-                          columns: const [
-                            DataColumn(label: Text('Nama Karyawan')),
-                            DataColumn(label: Text('Masuk')),
-                            DataColumn(label: Text('Pulang')),
-                            DataColumn(label: Text('Shift')),
-                            DataColumn(label: Text('Lembur Masuk')),
-                            DataColumn(label: Text('Lembur Pulang')),
-                            DataColumn(label: Text('Keterangan')),
-                            DataColumn(label: Text('Aksi')),
+              return SizedBox(
+                width: double.infinity,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SingleChildScrollView(
+                    child: DataTable(
+                      columnSpacing: 20,
+                      headingRowColor: WidgetStateProperty.all(const Color(0xFF1A237E)),
+                      headingTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      dataRowColor: WidgetStateProperty.all(const Color(0xFF1E1E1E)),
+                      columns: const [
+                        DataColumn(label: Text('Nama Karyawan')),
+                        DataColumn(label: Text('Masuk')),
+                        DataColumn(label: Text('Pulang')),
+                        DataColumn(label: Text('Shift')),
+                        DataColumn(label: Text('Lembur Masuk')),
+                        DataColumn(label: Text('Lembur Pulang')),
+                        DataColumn(label: Text('Keterangan')),
+                        DataColumn(label: Text('Aksi')),
+                      ],
+                      rows: users.map((user) {
+                        final record = byUid[user.uid];
+                        return DataRow(
+                          cells: [
+                            DataCell(Text(user.nama, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
+                            DataCell(_timeCell(
+                              context,
+                              label: 'Masuk',
+                              time: record?.waktuMasuk,
+                              photoUrl: record?.fotoMasukUrl,
+                              location: record?.lokasiMasuk,
+                            )),
+                            DataCell(_timeCell(
+                              context,
+                              label: 'Pulang',
+                              time: record?.waktuPulang,
+                              photoUrl: record?.fotoPulangUrl,
+                              location: record?.lokasiPulang,
+                            )),
+                            DataCell(Text(record?.shiftAktual.isNotEmpty == true ? record!.shiftAktual : '-', style: const TextStyle(color: Colors.white70))),
+                            DataCell(_lemburCell(
+                              context,
+                              label: 'Lembur Masuk',
+                              hours: record?.lemburMasuk,
+                              photoUrl: record?.fotoMasukUrl,
+                              location: record?.lokasiMasuk,
+                            )),
+                            DataCell(_lemburCell(
+                              context,
+                              label: 'Lembur Pulang',
+                              hours: (record?.lemburPulang ?? 0) > 0 ? record!.lemburPulang : record?.totalJamLembur,
+                              photoUrl: record?.fotoPulangUrl,
+                              location: record?.lokasiPulang,
+                            )),
+                            DataCell(Text(record?.keterangan?.isNotEmpty == true ? record!.keterangan! : '-', style: const TextStyle(color: Colors.white70))),
+                            DataCell(
+                              IconButton(
+                                icon: Icon(record == null ? Icons.add_circle : Icons.edit, color: record == null ? Colors.greenAccent : Colors.orange),
+                                tooltip: record == null ? 'Tambah absen' : 'Edit absen',
+                                onPressed: () => _showEditDialog(context, user, record, hrProvider),
+                              ),
+                            ),
                           ],
-                          rows: records.map((record) {
-                            return DataRow(
-                              cells: [
-                                DataCell(Text(getUserName(record.uid), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
-                                DataCell(
-                                  InkWell(
-                                    onTap: () => _showDetailDialog(context, 'Masuk', record.waktuMasuk, record.fotoMasukUrl, record.lokasiMasuk),
-                                    child: Row(
-                                      children: [
-                                        Text(record.waktuMasuk != null ? DateFormat('HH:mm').format(record.waktuMasuk!) : '-', style: const TextStyle(color: Colors.white70)),
-                                        if (record.waktuMasuk != null) const Icon(Icons.touch_app, size: 14, color: Colors.blueAccent),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  InkWell(
-                                    onTap: () => _showDetailDialog(context, 'Pulang', record.waktuPulang, record.fotoPulangUrl, record.lokasiPulang),
-                                    child: Row(
-                                      children: [
-                                        Text(record.waktuPulang != null ? DateFormat('HH:mm').format(record.waktuPulang!) : '-', style: const TextStyle(color: Colors.white70)),
-                                        if (record.waktuPulang != null) const Icon(Icons.touch_app, size: 14, color: Colors.blueAccent),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                DataCell(Text(record.shiftAktual, style: const TextStyle(color: Colors.white70))),
-                                DataCell(Text(record.lemburMasuk > 0 ? '${record.lemburMasuk.toStringAsFixed(1)} Jam' : '-', style: const TextStyle(color: Colors.white70))),
-                                DataCell(Text(record.lemburPulang > 0 ? '${record.lemburPulang.toStringAsFixed(1)} Jam' : (record.totalJamLembur > 0 ? '${record.totalJamLembur.toStringAsFixed(1)} Jam' : '-'), style: const TextStyle(color: Colors.white70))),
-                                DataCell(Text(record.keterangan ?? '-', style: const TextStyle(color: Colors.white70))),
-                                DataCell(
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.orange),
-                                    onPressed: () => _showEditDialog(context, record, hrProvider),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
+                        );
+                      }).toList(),
                     ),
                   ),
-                  Positioned(
-                    bottom: 16,
-                    right: 16,
-                    child: FloatingActionButton(
-                      onPressed: () => _showManualEntryDialog(context, hrProvider, users),
-                      backgroundColor: const Color(0xFFE91E63),
-                      child: const Icon(Icons.add),
-                    ),
-                  ),
-                ],
+                ),
               );
             },
           ),
@@ -160,14 +147,65 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
     );
   }
 
-  void _showDetailDialog(BuildContext context, String type, DateTime? time, String? photoUrl, GeoPoint? location) {
-    if (time == null) return;
+  Widget _timeCell(
+    BuildContext context, {
+    required String label,
+    required DateTime? time,
+    required String? photoUrl,
+    required GeoPoint? location,
+  }) {
+    if (time == null) {
+      return const Text('-', style: TextStyle(color: Colors.white38));
+    }
+    final formatted = DateFormat('HH:mm').format(time);
+    return InkWell(
+      onTap: () => _showDetailDialog(context, title: '$label ($formatted)', photoUrl: photoUrl, location: location),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(formatted, style: const TextStyle(color: Colors.white70)),
+          const SizedBox(width: 4),
+          const Icon(Icons.touch_app, size: 14, color: Colors.blueAccent),
+        ],
+      ),
+    );
+  }
 
+  Widget _lemburCell(
+    BuildContext context, {
+    required String label,
+    required double? hours,
+    required String? photoUrl,
+    required GeoPoint? location,
+  }) {
+    if (hours == null || hours <= 0) {
+      return const Text('-', style: TextStyle(color: Colors.white38));
+    }
+    final formatted = '${hours.toStringAsFixed(1)} Jam';
+    return InkWell(
+      onTap: () => _showDetailDialog(context, title: '$label ($formatted)', photoUrl: photoUrl, location: location),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(formatted, style: const TextStyle(color: Colors.white70)),
+          const SizedBox(width: 4),
+          const Icon(Icons.touch_app, size: 14, color: Colors.blueAccent),
+        ],
+      ),
+    );
+  }
+
+  void _showDetailDialog(
+    BuildContext context, {
+    required String title,
+    required String? photoUrl,
+    required GeoPoint? location,
+  }) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Detail $type (${DateFormat('HH:mm').format(time)})'),
+          title: Text('Detail $title'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -225,170 +263,156 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
     );
   }
 
-  void _showEditDialog(BuildContext context, AttendanceModel record, HrProvider hrProvider) {
-    TimeOfDay? masukTime = record.waktuMasuk != null ? TimeOfDay.fromDateTime(record.waktuMasuk!) : null;
-    TimeOfDay? pulangTime = record.waktuPulang != null ? TimeOfDay.fromDateTime(record.waktuPulang!) : null;
-    
-    final shiftController = TextEditingController(text: record.shiftAktual);
-    final lemburMasukController = TextEditingController(text: record.lemburMasuk.toString());
-    final lemburPulangController = TextEditingController(text: record.lemburPulang > 0 ? record.lemburPulang.toString() : record.totalJamLembur.toString());
-    final keteranganController = TextEditingController(text: record.keterangan ?? '');
+  void _showEditDialog(
+    BuildContext context,
+    UserModel user,
+    AttendanceModel? record,
+    HrProvider hrProvider,
+  ) {
+    TimeOfDay? masukTime = record?.waktuMasuk != null ? TimeOfDay.fromDateTime(record!.waktuMasuk!) : null;
+    TimeOfDay? pulangTime = record?.waktuPulang != null ? TimeOfDay.fromDateTime(record!.waktuPulang!) : null;
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Edit Data Absen'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      title: const Text('Waktu Masuk'),
-                      subtitle: Text(masukTime?.format(context) ?? '-'),
-                      trailing: const Icon(Icons.access_time),
-                      onTap: () async {
-                        final picked = await showTimePicker(context: context, initialTime: masukTime ?? TimeOfDay.now());
-                        if (picked != null) setState(() => masukTime = picked);
-                      },
-                    ),
-                    ListTile(
-                      title: const Text('Waktu Pulang'),
-                      subtitle: Text(pulangTime?.format(context) ?? '-'),
-                      trailing: const Icon(Icons.access_time),
-                      onTap: () async {
-                        final picked = await showTimePicker(context: context, initialTime: pulangTime ?? TimeOfDay.now());
-                        if (picked != null) setState(() => pulangTime = picked);
-                      },
-                    ),
-                    TextField(controller: shiftController, decoration: const InputDecoration(labelText: 'Shift Aktual')),
-                    TextField(controller: lemburMasukController, decoration: const InputDecoration(labelText: 'Lembur Masuk (Jam)'), keyboardType: TextInputType.number),
-                    TextField(controller: lemburPulangController, decoration: const InputDecoration(labelText: 'Lembur Pulang (Jam)'), keyboardType: TextInputType.number),
-                    TextField(controller: keteranganController, decoration: const InputDecoration(labelText: 'Keterangan'), maxLines: 2),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-                ElevatedButton(
-                  onPressed: () {
-                    DateTime? newMasuk = masukTime != null ? DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, masukTime!.hour, masukTime!.minute) : null;
-                    DateTime? newPulang = pulangTime != null ? DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, pulangTime!.hour, pulangTime!.minute) : null;
-                    
-                    double lMasuk = double.tryParse(lemburMasukController.text) ?? 0;
-                    double lPulang = double.tryParse(lemburPulangController.text) ?? 0;
-
-                    final updatedRecord = AttendanceModel(
-                      idAbsen: record.idAbsen,
-                      uid: record.uid,
-                      tanggal: record.tanggal,
-                      waktuMasuk: newMasuk,
-                      lokasiMasuk: record.lokasiMasuk,
-                      fotoMasukUrl: record.fotoMasukUrl,
-                      waktuPulang: newPulang,
-                      lokasiPulang: record.lokasiPulang,
-                      fotoPulangUrl: record.fotoPulangUrl,
-                      shiftAktual: shiftController.text,
-                      totalJamNormal: record.totalJamNormal,
-                      totalJamLembur: lMasuk + lPulang,
-                      lemburMasuk: lMasuk,
-                      lemburPulang: lPulang,
-                      status: record.status,
-                      keterangan: keteranganController.text,
-                    );
-
-                    hrProvider.updateAttendance(updatedRecord);
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diperbarui.')));
-                  },
-                  child: const Text('Simpan'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    final normalController = TextEditingController(
+      text: (record?.totalJamNormal ?? 0).toStringAsFixed(1),
     );
-  }
+    final lemburController = TextEditingController(
+      text: (record?.totalJamLembur ?? 0).toStringAsFixed(1),
+    );
 
-  void _showManualEntryDialog(BuildContext context, HrProvider hrProvider, List<UserModel> users) {
-    UserModel? selectedUser;
-    TimeOfDay? masukTime;
-    TimeOfDay? pulangTime;
+    void recompute() {
+      if (masukTime == null || pulangTime == null) return;
+      final masukDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, masukTime!.hour, masukTime!.minute);
+      var pulangDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, pulangTime!.hour, pulangTime!.minute);
+      if (!pulangDt.isAfter(masukDt)) {
+        pulangDt = pulangDt.add(const Duration(days: 1));
+      }
+      final totalHours = pulangDt.difference(masukDt).inMinutes / 60.0;
+      final normal = totalHours > 8 ? 8.0 : totalHours;
+      final lembur = totalHours > 8 ? totalHours - 8 : 0.0;
+      normalController.text = normal.toStringAsFixed(1);
+      lemburController.text = lembur.toStringAsFixed(1);
+    }
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (ctx, setState) {
             return AlertDialog(
-              title: const Text('Input Absen Manual'),
+              title: Text(record == null ? 'Tambah Absen: ${user.nama}' : 'Edit Absen: ${user.nama}'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    DropdownButtonFormField<UserModel>(
-                      decoration: const InputDecoration(labelText: 'Pilih Karyawan'),
-                      items: users.map((u) => DropdownMenuItem(value: u, child: Text(u.nama))).toList(),
-                      onChanged: (val) => setState(() => selectedUser = val),
-                    ),
-                    const SizedBox(height: 10),
                     ListTile(
                       title: const Text('Waktu Masuk'),
-                      subtitle: Text(masukTime?.format(context) ?? 'Belum diset'),
+                      subtitle: Text(masukTime?.format(ctx) ?? 'Belum diset'),
                       trailing: const Icon(Icons.access_time),
                       onTap: () async {
-                        final picked = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                        if (picked != null) setState(() => masukTime = picked);
+                        final picked = await showTimePicker(
+                          context: ctx,
+                          initialTime: masukTime ?? TimeOfDay.now(),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            masukTime = picked;
+                            recompute();
+                          });
+                        }
                       },
                     ),
                     ListTile(
                       title: const Text('Waktu Pulang'),
-                      subtitle: Text(pulangTime?.format(context) ?? 'Belum diset'),
+                      subtitle: Text(pulangTime?.format(ctx) ?? 'Belum diset'),
                       trailing: const Icon(Icons.access_time),
                       onTap: () async {
-                        final picked = await showTimePicker(context: context, initialTime: TimeOfDay.now());
-                        if (picked != null) setState(() => pulangTime = picked);
+                        final picked = await showTimePicker(
+                          context: ctx,
+                          initialTime: pulangTime ?? TimeOfDay.now(),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            pulangTime = picked;
+                            recompute();
+                          });
+                        }
                       },
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: normalController,
+                      decoration: const InputDecoration(
+                        labelText: 'Total Waktu Kerja Normal (Jam)',
+                        helperText: 'Otomatis terhitung dari waktu masuk & pulang',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    TextField(
+                      controller: lemburController,
+                      decoration: const InputDecoration(
+                        labelText: 'Total Waktu Lembur (Jam)',
+                        helperText: 'Otomatis terhitung dari waktu masuk & pulang',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+                TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
                 ElevatedButton(
-                  onPressed: () {
-                    if (selectedUser == null || masukTime == null || pulangTime == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lengkapi semua data.')));
+                  onPressed: () async {
+                    if (masukTime == null || pulangTime == null) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('Lengkapi waktu masuk dan pulang.')),
+                      );
                       return;
                     }
+                    final masukDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, masukTime!.hour, masukTime!.minute);
+                    var pulangDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, pulangTime!.hour, pulangTime!.minute);
+                    if (!pulangDt.isAfter(masukDt)) {
+                      pulangDt = pulangDt.add(const Duration(days: 1));
+                    }
 
-                    DateTime masukDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, masukTime!.hour, masukTime!.minute);
-                    DateTime pulangDt = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, pulangTime!.hour, pulangTime!.minute);
-                    
-                    double totalHours = pulangDt.difference(masukDt).inMinutes / 60.0;
-                    double jamNormal = totalHours > 8 ? 8 : totalHours;
-                    double jamLembur = totalHours > 8 ? totalHours - 8 : 0;
+                    final normal = double.tryParse(normalController.text) ?? 0;
+                    final lembur = double.tryParse(lemburController.text) ?? 0;
 
-                    final record = AttendanceModel(
-                      idAbsen: '',
-                      uid: selectedUser!.uid,
-                      tanggal: DateFormat('yyyy-MM-dd').format(_selectedDate),
+                    final updated = AttendanceModel(
+                      idAbsen: record?.idAbsen,
+                      uid: user.uid,
+                      tanggal: Formatters.isoDateKey(_selectedDate),
                       waktuMasuk: masukDt,
+                      lokasiMasuk: record?.lokasiMasuk,
+                      fotoMasukUrl: record?.fotoMasukUrl,
                       waktuPulang: pulangDt,
-                      shiftAktual: 'Manual HR',
-                      totalJamNormal: jamNormal,
-                      totalJamLembur: jamLembur,
-                      lemburMasuk: 0,
-                      lemburPulang: jamLembur,
-                      status: 'Selesai',
+                      lokasiPulang: record?.lokasiPulang,
+                      fotoPulangUrl: record?.fotoPulangUrl,
+                      shiftAktual: record?.shiftAktual.isNotEmpty == true ? record!.shiftAktual : Shifts.manualHr,
+                      totalJamNormal: normal,
+                      totalJamLembur: lembur,
+                      lemburMasuk: record?.lemburMasuk ?? 0,
+                      lemburPulang: record?.lemburPulang ?? 0,
+                      status: AttendanceStatus.selesai,
+                      keterangan: record?.keterangan,
                     );
 
-                    hrProvider.manualAddAttendance(record);
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Absensi manual berhasil disimpan.')));
+                    try {
+                      if (record == null) {
+                        await hrProvider.manualAddAttendance(updated);
+                      } else {
+                        await hrProvider.updateAttendance(updated);
+                      }
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('Data berhasil disimpan.')),
+                      );
+                    } catch (e) {
+                      if (!dialogContext.mounted) return;
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   },
                   child: const Text('Simpan'),
                 ),
@@ -456,7 +480,7 @@ class _DailyAttendanceTabState extends State<DailyAttendanceTab> {
                   ? const Center(child: Text('Data GPS tidak tersedia.'))
                   : FlutterMap(
                       options: MapOptions(
-                        initialCenter: center!,
+                        initialCenter: center,
                         initialZoom: 12,
                       ),
                       children: [
